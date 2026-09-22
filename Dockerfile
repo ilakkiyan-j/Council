@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install build dependencies & openssl
+RUN apk add --no-cache openssl openssl-dev libc6-compat
+
 # Install dependencies & generate Prisma client
 COPY package*.json ./
 COPY prisma ./prisma/
@@ -20,6 +23,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=4100
+
+# Install runtime openssl & compatibility libraries needed by Prisma engine
+RUN apk add --no-cache openssl libc6-compat
 
 COPY package*.json ./
 COPY prisma ./prisma/
