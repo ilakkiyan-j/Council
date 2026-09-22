@@ -24,6 +24,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/public ./src/public
+RUN mkdir -p data/sessions data/memory
 
 EXPOSE 4100
 

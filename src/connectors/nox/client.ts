@@ -4,7 +4,7 @@ export class NoxClient {
   private baseUrl: string;
 
   constructor(baseUrl: string = config.noxApiUrl) {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.baseUrl = baseUrl.replace(/\/+$/, '').replace(/\/api\/v1$/, '');
   }
 
   private async request<T = any>(endpoint: string, options: RequestInit = {}, authToken?: string): Promise<T> {
@@ -37,12 +37,71 @@ export class NoxClient {
     return this.request('/api/v1/dashboard', { method: 'GET' }, authToken);
   }
 
+  // ---- Goals ----------------------------------------------------------------
+  async getGoals(authToken?: string) {
+    return this.request('/api/v1/goals', { method: 'GET' }, authToken);
+  }
+
+  async createGoal(data: { title: string; description?: string; targetDate?: string; status?: string }, authToken?: string) {
+    return this.request('/api/v1/goals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, authToken);
+  }
+
+  // ---- Roadmaps & Milestones ------------------------------------------------
+  async getRoadmaps(authToken?: string) {
+    return this.request('/api/v1/roadmaps', { method: 'GET' }, authToken);
+  }
+
+  async createRoadmap(data: { goalId?: string; title: string; description?: string }, authToken?: string) {
+    return this.request('/api/v1/roadmaps', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, authToken);
+  }
+
+  async createMilestone(roadmapId: string, data: { title: string; description?: string; targetDate?: string; order?: number }, authToken?: string) {
+    return this.request(`/api/v1/roadmaps/${roadmapId}/milestones`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, authToken);
+  }
+
+  // ---- Learning Paths & Courses ---------------------------------------------
+  async getLearning(authToken?: string) {
+    return this.request('/api/v1/learning', { method: 'GET' }, authToken);
+  }
+
+  async createLearning(data: { title: string; description?: string; type?: string; url?: string; goalId?: string; roadmapId?: string; modules?: string[] }, authToken?: string) {
+    return this.request('/api/v1/learning', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }, authToken);
+  }
+
+  async updateLearningModule(learningId: string, moduleId: string, status: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED', authToken?: string) {
+    return this.request(`/api/v1/learning/${learningId}/modules/${moduleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }, authToken);
+  }
+
   // ---- Tasks ----------------------------------------------------------------
   async getTasks(authToken?: string) {
     return this.request('/api/v1/tasks', { method: 'GET' }, authToken);
   }
 
-  async createTask(data: { title: string; priority?: string; dueDate?: string; goalId?: string; roadmapId?: string; milestoneId?: string; learningId?: string; eventId?: string }, authToken?: string) {
+  async createTask(data: {
+    title: string;
+    priority?: string;
+    dueDate?: string;
+    goalId?: string;
+    roadmapId?: string;
+    milestoneId?: string;
+    learningId?: string;
+    eventId?: string;
+  }, authToken?: string) {
     return this.request('/api/v1/tasks', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -92,12 +151,21 @@ export class NoxClient {
     }, authToken);
   }
 
-  // ---- Notes ----------------------------------------------------------------
-  async createNote(data: { title: string; content?: string }, authToken?: string) {
+  // ---- Notes & Knowledge ----------------------------------------------------
+  async getNotes(authToken?: string) {
+    return this.request('/api/v1/notes', { method: 'GET' }, authToken);
+  }
+
+  async createNote(data: { title: string; content?: string; tags?: string[]; goalId?: string; taskId?: string }, authToken?: string) {
     return this.request('/api/v1/notes', {
       method: 'POST',
       body: JSON.stringify(data),
     }, authToken);
+  }
+
+  // ---- Global Search --------------------------------------------------------
+  async search(query: string, authToken?: string) {
+    return this.request(`/api/v1/search?q=${encodeURIComponent(query)}`, { method: 'GET' }, authToken);
   }
 }
 

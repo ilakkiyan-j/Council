@@ -1,17 +1,17 @@
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  toolCalls?: any[];
-  toolResults?: any[];
-  timestamp: string;
-}
+import { SessionStore, ChatMessage, SessionData } from './memory/sessionStore.js';
+import { ProfileStore, UserProfileMemory } from './memory/profileStore.js';
+
+export { ChatMessage, SessionData, UserProfileMemory };
 
 export class SessionMemory {
   private static instance: SessionMemory;
-  private sessions: Map<string, ChatMessage[]> = new Map();
-  private maxHistoryPerSession = 25;
+  private sessionStore: SessionStore;
+  private profileStore: ProfileStore;
 
-  private constructor() {}
+  private constructor() {
+    this.sessionStore = SessionStore.getInstance();
+    this.profileStore = ProfileStore.getInstance();
+  }
 
   public static getInstance(): SessionMemory {
     if (!SessionMemory.instance) {
@@ -21,21 +21,38 @@ export class SessionMemory {
   }
 
   public getHistory(sessionId: string): ChatMessage[] {
-    return this.sessions.get(sessionId) || [];
+    return this.sessionStore.getHistory(sessionId);
   }
 
-  public addMessage(sessionId: string, message: ChatMessage): void {
-    const history = this.sessions.get(sessionId) || [];
-    history.push(message);
-
-    // Prune if exceeds max limit (keeping recent context)
-    if (history.length > this.maxHistoryPerSession) {
-      history.splice(0, history.length - this.maxHistoryPerSession);
-    }
-    this.sessions.set(sessionId, history);
+  public addMessage(sessionId: string, message: ChatMessage, personaId?: string): void {
+    this.sessionStore.addMessage(sessionId, message, personaId);
   }
 
-  public clearSession(sessionId: string): void {
-    this.sessions.delete(sessionId);
+  public clearSession(sessionId: string): boolean {
+    return this.sessionStore.clearSession(sessionId);
+  }
+
+  public listSessions() {
+    return this.sessionStore.listSessions();
+  }
+
+  public getSession(sessionId: string) {
+    return this.sessionStore.getSession(sessionId);
+  }
+
+  public getProfile(userId: string, userName?: string): UserProfileMemory {
+    return this.profileStore.getProfile(userId, userName);
+  }
+
+  public addFact(userId: string, fact: string, category?: any, sourcePersona?: string): void {
+    this.profileStore.addFact(userId, fact, category, sourcePersona);
+  }
+
+  public addPersonaNote(userId: string, persona: 'sofi' | 'riven' | 'lucifer', note: string): void {
+    this.profileStore.addPersonaNote(userId, persona, note);
+  }
+
+  public getFormattedMemoryContext(userId: string, activePersona?: string): string {
+    return this.profileStore.getFormattedMemoryContext(userId, activePersona);
   }
 }
