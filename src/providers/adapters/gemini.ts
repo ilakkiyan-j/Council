@@ -218,8 +218,12 @@ export class GeminiAdapter implements ModelProvider {
       if (secondRes.ok) {
         const secondData: any = await secondRes.json();
         const secondCandidate = secondData.candidates?.[0];
-        const textParts = secondCandidate?.content?.parts?.filter((p: any) => p.text) || [];
-        const reply = textParts.map((p: any) => p.text).join('\n').trim();
+        // Filter out internal thought/reasoning parts from Gemini thinking models
+        const textParts = secondCandidate?.content?.parts?.filter((p: any) => p.text && !p.thought) || [];
+        const fallbackParts = textParts.length > 0 ? textParts : (secondCandidate?.content?.parts?.filter((p: any) => p.text) || []);
+        let reply = fallbackParts.map((p: any) => p.text).join('\n').trim();
+        reply = reply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').trim();
+
         return {
           reply: reply || 'Action completed successfully.',
           executedActions,
@@ -229,8 +233,11 @@ export class GeminiAdapter implements ModelProvider {
       }
     }
 
-    const textParts = parts.filter((p: any) => p.text);
-    const reply = textParts.map((p: any) => p.text).join('\n').trim();
+    // Filter out internal thought/reasoning parts from Gemini thinking models
+    const textParts = parts.filter((p: any) => p.text && !p.thought);
+    const fallbackParts = textParts.length > 0 ? textParts : parts.filter((p: any) => p.text);
+    let reply = fallbackParts.map((p: any) => p.text).join('\n').trim();
+    reply = reply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').trim();
 
     return {
       reply: reply || 'Ready to assist.',
