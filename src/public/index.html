@@ -81,6 +81,21 @@
       letter-spacing: 0.05em;
     }
 
+    /* Embedded Mode Overrides */
+    body.is-embed {
+      background: #090d16;
+    }
+    body.is-embed .brand-section {
+      display: none;
+    }
+    body.is-embed .app-sidebar {
+      width: 220px;
+      border-right: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    body.is-embed .top-header {
+      padding: 0.85rem 1.5rem;
+    }
+
     .nav-menu {
       flex: 1;
       padding: 1rem 0.75rem;
@@ -965,6 +980,31 @@
   </div>
 
   <script>
+    // Embed & Auth resolution
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    const isEmbed = urlParams.get('embed') === 'true' || window.location.pathname.startsWith('/embed');
+
+    if (tokenFromUrl) {
+      localStorage.setItem('council_auth_token', tokenFromUrl);
+    }
+
+    if (isEmbed) {
+      document.body.classList.add('is-embed');
+    }
+
+    // Two-way postMessage listener for host applications (Nox / Xion)
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'COUNCIL_INIT_AUTH' && event.data.token) {
+        localStorage.setItem('council_auth_token', event.data.token);
+        loadAllData();
+      }
+    });
+
+    function getAuthToken() {
+      return localStorage.getItem('council_auth_token') || urlParams.get('token');
+    }
+
     // State
     let allBots = [];
     let allCredentials = [];
@@ -1003,7 +1043,12 @@
 
     // API calls
     async function apiFetch(endpoint, options = {}) {
-      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      const token = getAuthToken();
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(options.headers || {})
+      };
       const res = await fetch(`/api/v1${endpoint}`, { ...options, headers });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {

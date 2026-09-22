@@ -24,10 +24,15 @@ function getJwtSecret(): string {
 
 export function extractBearerToken(req: Request): string | null {
   const header = req.headers.authorization;
-  if (!header || typeof header !== 'string') return null;
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token || token.trim().length === 0) return null;
-  return token.trim();
+  if (header && typeof header === 'string') {
+    const [scheme, token] = header.split(' ');
+    if (scheme === 'Bearer' && token && token.trim().length > 0) return token.trim();
+  }
+  // Allow passing token via query param (e.g. embed views and SSE streams)
+  if (req.query?.token && typeof req.query.token === 'string' && req.query.token.trim().length > 0) {
+    return req.query.token.trim();
+  }
+  return null;
 }
 
 /**

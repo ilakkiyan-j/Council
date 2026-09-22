@@ -28,12 +28,25 @@ export function createApp() {
     app.use(express.static(publicDir));
   }
 
+  // Common HTML sender with framing support for embedding in Nox/Xion
+  const serveHtml = (_req: express.Request, res: express.Response) => {
+    const indexFile = path.join(publicDir, 'index.html');
+    if (fs.existsSync(indexFile)) {
+      res.setHeader(
+        'Content-Security-Policy',
+        "frame-ancestors 'self' http://localhost:* http://127.0.0.1:* https://*.onrender.com https://*.vercel.app;"
+      );
+      res.removeHeader('X-Frame-Options');
+      return res.sendFile(indexFile);
+    }
+    return res.status(200).send('Council Dashboard');
+  };
+
   // Root endpoint: serve Dashboard if browser/HTML requested, otherwise JSON status
   app.get('/', (req, res) => {
     const acceptsHtml = req.accepts('html');
-    const indexFile = path.join(publicDir, 'index.html');
-    if (acceptsHtml && fs.existsSync(indexFile)) {
-      return res.sendFile(indexFile);
+    if (acceptsHtml) {
+      return serveHtml(req, res);
     }
     return res.status(200).json({ status: 'ok', service: 'Council V2 — Custom AI Bot Platform' });
   });
@@ -42,13 +55,8 @@ export function createApp() {
     return res.status(200).json({ status: 'ok', service: 'Council V2 — Custom AI Bot Platform' });
   });
 
-  app.get('/dashboard', (_req, res) => {
-    const indexFile = path.join(publicDir, 'index.html');
-    if (fs.existsSync(indexFile)) {
-      return res.sendFile(indexFile);
-    }
-    return res.status(200).send('Council Dashboard');
-  });
+  app.get('/dashboard', serveHtml);
+  app.get('/embed', serveHtml);
 
   // Global authentication resolver for API routes
   app.use('/api/v1', authenticateUser);
