@@ -48,8 +48,20 @@ export class BotRuntime {
       const conv = await this.conversationService.createConversation(userId, bot.id);
       conversationId = conv.id;
     } else {
-      // Validate ownership
-      await this.conversationService.getConversation(userId, conversationId);
+      // Auto-create conversation with client's requested ID (e.g. from Nox sessions) if not found
+      const existing = await this.prisma.conversation.findFirst({
+        where: { id: conversationId, userId },
+      });
+      if (!existing) {
+        await this.prisma.conversation.create({
+          data: {
+            id: conversationId,
+            userId,
+            botId: bot.id,
+            title: `Chat with ${bot.name}`,
+          },
+        });
+      }
     }
 
     // 3. Save User Message
@@ -132,7 +144,19 @@ export class BotRuntime {
       const conv = await this.conversationService.createConversation(userId, bot.id);
       conversationId = conv.id;
     } else {
-      await this.conversationService.getConversation(userId, conversationId);
+      const existing = await this.prisma.conversation.findFirst({
+        where: { id: conversationId, userId },
+      });
+      if (!existing) {
+        await this.prisma.conversation.create({
+          data: {
+            id: conversationId,
+            userId,
+            botId: bot.id,
+            title: `Chat with ${bot.name}`,
+          },
+        });
+      }
     }
 
     await this.conversationService.addMessage(conversationId, 'user', message);

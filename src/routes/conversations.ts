@@ -97,12 +97,34 @@ conversationsRouter.get('/sessions/:id', requireAuth, async (req: Request, res: 
   try {
     const userId = req.user!.id;
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const conv = await convService.getConversation(userId, id);
+    const conv = await prisma.conversation.findFirst({
+      where: { id, userId },
+      include: {
+        bot: true,
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!conv) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          sessionId: id,
+          personaId: 'sofi',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          messages: [],
+        },
+      });
+    }
+
     return res.status(200).json({
       success: true,
       data: {
         sessionId: conv.id,
-        personaId: conv.bot.slug,
+        personaId: conv.bot?.slug || 'sofi',
         createdAt: conv.createdAt.toISOString(),
         updatedAt: conv.updatedAt.toISOString(),
         messages: conv.messages.map((m) => ({
@@ -115,7 +137,7 @@ conversationsRouter.get('/sessions/:id', requireAuth, async (req: Request, res: 
       },
     });
   } catch (err: any) {
-    return res.status(404).json({ success: false, error: { message: err?.message || 'Session not found' } });
+    return res.status(500).json({ success: false, error: { message: err?.message || 'Failed to get session' } });
   }
 });
 
