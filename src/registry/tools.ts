@@ -1,5 +1,6 @@
 import { ToolDefinition } from '../connectors/nox/types.js';
 import { noxTools } from '../connectors/nox/tools.js';
+import { searchWeb } from '../services/webSearchService.js';
 
 export interface RegisteredTool {
   id: string;
@@ -271,18 +272,62 @@ export const REGISTERED_TOOLS: RegisteredTool[] = [
       return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
     },
   },
+
+  // ---- Live Web Search ----
+  {
+    id: 'web_search',
+    applicationSlug: 'web',
+    name: 'web_search',
+    description: 'Search the live web for real-time information, upcoming events, schedules, news, articles, weather, documentation, or facts.',
+    category: 'search',
+    isMutating: false,
+    requiredPermission: 'AUTOMATIC',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search terms to look up on the web (e.g. "Confluent AI Developers day schedule", "Bangalore weather today", "Next.js 15 features")',
+        },
+        numResults: {
+          type: 'number',
+          description: 'Number of search results to return (default: 5)',
+        },
+      },
+      required: ['query'],
+    },
+    execute: async (args: any) => {
+      const q = typeof args === 'string' ? args : args?.query || '';
+      const n = typeof args === 'object' && args?.numResults ? Number(args.numResults) : 5;
+      return searchWeb(q, n);
+    },
+  },
 ];
 
 /**
- * Filter tools allowed for a bot based on its active integrations and permissions
+ * Filter tools allowed for a bot based on its active integrations and permissions.
+ * Universal tools like web_search are always provided to every bot.
  */
 export function resolveToolsForBot(
   integrations: Array<{ applicationId: string; application: { slug: string }; permissions: any }>
 ): ToolDefinition[] {
   const allowedTools: ToolDefinition[] = [];
 
-  for (const integration of integrations) {
-    const appSlug = integration.application.slug;
+  // 1. Universal tools (Live Web Search) available to all bots
+  const universalTools = REGISTERED_TOOLS.filter((t) => t.applicationSlug === 'web');
+  for (const tool of universalTools) {
+    allowedTools.push({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+      execute: tool.execute,
+    });
+  }
+
+  // 2. Application-specific tools (Nox, etc.)
+  for (const integration of integrations || []) {
+    const appSlug = integration.application?.slug;
+    if (!appSlug) continue;
     const permissions = (integration.permissions as Record<string, string>) || {};
 
     const appTools = REGISTERED_TOOLS.filter((t) => t.applicationSlug === appSlug);
