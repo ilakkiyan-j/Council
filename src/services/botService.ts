@@ -214,14 +214,19 @@ export class BotService {
     return this.getBot(userId, bot.id);
   }
 
-  async updateBot(userId: string, botId: string, input: UpdateBotInput, ipAddress?: string) {
+  async updateBot(userId: string, botIdOrSlug: string, input: UpdateBotInput, ipAddress?: string) {
     const existing = await this.prisma.bot.findFirst({
-      where: { id: botId, userId },
+      where: {
+        userId,
+        OR: [{ id: botIdOrSlug }, { slug: botIdOrSlug }],
+      },
     });
 
     if (!existing) {
-      throw new Error(`Bot with ID "${botId}" not found or unauthorized.`);
+      throw new Error(`Bot with ID "${botIdOrSlug}" not found or unauthorized.`);
     }
+
+    const botId = existing.id;
 
     const updated = await this.prisma.bot.update({
       where: { id: botId },
@@ -327,14 +332,19 @@ export class BotService {
     return this.getBot(userId, botId);
   }
 
-  async deleteBot(userId: string, botId: string, ipAddress?: string) {
+  async deleteBot(userId: string, botIdOrSlug: string, ipAddress?: string) {
     const existing = await this.prisma.bot.findFirst({
-      where: { id: botId, userId },
+      where: {
+        userId,
+        OR: [{ id: botIdOrSlug }, { slug: botIdOrSlug }],
+      },
     });
 
     if (!existing) {
-      throw new Error(`Bot "${botId}" not found or unauthorized.`);
+      throw new Error(`Bot "${botIdOrSlug}" not found or unauthorized.`);
     }
+
+    const botId = existing.id;
 
     await this.prisma.bot.delete({
       where: { id: botId },
