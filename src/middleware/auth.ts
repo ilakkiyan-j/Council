@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../db/client.js';
 
 export interface CouncilUser {
   id: string;
@@ -18,7 +18,9 @@ declare global {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'council-jwt-secret-dev';
+function getJwtSecret(): string {
+  return process.env.JWT_SECRET || 'council-jwt-secret-dev';
+}
 
 export function extractBearerToken(req: Request): string | null {
   const header = req.headers.authorization;
@@ -30,15 +32,15 @@ export function extractBearerToken(req: Request): string | null {
 
 /**
  * Resolves the authenticated user.
- * In development, if no token is passed, resolves the default active user.
- * In production, strictly requires a verified JWT token.
+ * Dynamically verifies JWT tokens with Nox's JWT_SECRET.
  */
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
   const token = extractBearerToken(req);
 
   if (token) {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      const secret = getJwtSecret();
+      const decoded = jwt.verify(token, secret) as any;
       const userId = decoded.sub || decoded.id || decoded.userId;
       if (userId) {
         req.user = {
@@ -49,16 +51,19 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
         };
         return next();
       }
-    } catch {
-      // Invalid token
-      return res.status(401).json({
-        success: false,
-        error: { message: 'Invalid or expired authentication session. Please sign in again.' },
-      });
+    } catch (err: any) {
+      console.warn('[Council Auth] Token verification notice:', err?.message);
+      // In production, return 401 if a token was provided but invalid
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(401).json({
+          success: false,
+          error: { message: `Council token verification failed: ${err?.message}` },
+        });
+      }
     }
   }
 
-  // Development convenience or direct dashboard session
+  // Development convenience or explicit user ID header
   const requestedUserId = (req.headers['x-user-id'] as string) || (req.query.userId as string);
   if (requestedUserId) {
     req.user = {
