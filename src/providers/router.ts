@@ -96,10 +96,24 @@ export class ModelRouter {
     let decryptedKey: string | undefined = undefined;
 
     if (!adapter.isLocal) {
-      const cred = modelConfig.credential;
+      let cred = modelConfig.credential;
+
+      // Automatic 1-to-many key inheritance: if bot doesn't have an active bound key,
+      // resolve the user's active key for this provider (e.g. Gemini, Groq, OpenAI)
       if (!cred || cred.userId !== userId || cred.status !== 'ACTIVE') {
+        cred = await prisma.providerCredential.findFirst({
+          where: {
+            userId,
+            provider: providerId,
+            status: 'ACTIVE',
+          },
+          orderBy: { updatedAt: 'desc' },
+        });
+      }
+
+      if (!cred || cred.status !== 'ACTIVE') {
         throw new Error(
-          `Your ${adapter.name} credential is unavailable. Reconnect your provider in Settings -> AI Providers to continue.`
+          `Your ${adapter.name} credential is unavailable. Reconnect your provider key in BYOK Keys to continue.`
         );
       }
 
