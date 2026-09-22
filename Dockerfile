@@ -3,8 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
+# Install dependencies & generate Prisma client
 COPY package*.json ./
+COPY prisma ./prisma/
 RUN npm ci
 
 # Copy source and build TypeScript
@@ -21,11 +22,11 @@ ENV NODE_ENV=production
 ENV PORT=4100
 
 COPY package*.json ./
+COPY prisma ./prisma/
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/public ./src/public
-RUN mkdir -p data/sessions data/memory
 
 EXPOSE 4100
 

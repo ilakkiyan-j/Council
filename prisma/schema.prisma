@@ -1,0 +1,240 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// -----------------------------------------------------------------------------
+// Core Bot Models
+// -----------------------------------------------------------------------------
+
+model Bot {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  slug        String
+  description String?  @default("")
+  avatar      String?  @default("🤖")
+  color       String?  @default("indigo")
+  role        String   @default("Custom Assistant")
+  status      String   @default("ACTIVE") // ACTIVE, DRAFT, ARCHIVED
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  persona       BotPersona?
+  instruction   BotInstruction?
+  modelConfig   ModelConfiguration?
+  integrations  BotIntegration[]
+  conversations Conversation[]
+  memories      Memory[]
+
+  @@unique([userId, slug])
+  @@index([userId])
+  @@index([status])
+}
+
+model BotPersona {
+  id                 String   @id @default(cuid())
+  botId              String   @unique
+  bot                Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  personality        Json?    @default("[]") // Array of personality traits
+  communicationStyle String?  @default("concise") // concise, expressive, technical, warm, direct
+  traits             Json?    @default("{\"creativity\": 0.6, \"strictness\": 0.5, \"humor\": 0.3}")
+  role               String?
+  goals              Json?    @default("[]")
+  behaviorRules      Json?    @default("[]")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model BotInstruction {
+  id                String   @id @default(cuid())
+  botId             String   @unique
+  bot               Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  systemPrompt      String   @db.Text
+  contextGuidelines String?  @db.Text
+  safetyRules       String?  @db.Text
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// -----------------------------------------------------------------------------
+// Model & Credential Models (BYOK)
+// -----------------------------------------------------------------------------
+
+model ModelConfiguration {
+  id              String              @id @default(cuid())
+  botId           String              @unique
+  bot             Bot                 @relation(fields: [botId], references: [id], onDelete: Cascade)
+  provider        String              @default("gemini") // gemini, openai, groq, anthropic, openrouter, ollama
+  model           String              @default("gemini-2.5-flash")
+  credentialId    String?
+  credential      ProviderCredential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  temperature     Float               @default(0.7)
+  maxTokens       Int                 @default(2048)
+  topP            Float?              @default(0.95)
+  streamSupported Boolean             @default(true)
+  customEndpoint  String?             // For local Ollama or custom baseURL
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([credentialId])
+}
+
+model ProviderCredential {
+  id              String               @id @default(cuid())
+  userId          String
+  provider        String               // gemini, openai, groq, anthropic, openrouter, ollama
+  label           String               // e.g. "Ilakkiyan's Personal Gemini Key"
+  encryptedSecret String               @db.Text // AES-256-GCM ciphertext
+  iv              String               // Initialization vector
+  authTag         String               // GCM authentication tag
+  keyFingerprint  String               // Non-reversible SHA-256 fingerprint
+  status          String               @default("ACTIVE") // ACTIVE, INVALID, REVOKED
+  lastValidatedAt DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  botConfigs ModelConfiguration[]
+
+  @@unique([userId, provider, keyFingerprint])
+  @@index([userId])
+  @@index([provider])
+}
+
+// -----------------------------------------------------------------------------
+// Conversations & Messages
+// -----------------------------------------------------------------------------
+
+model Conversation {
+  id          String    @id @default(cuid())
+  userId      String
+  botId       String
+  bot         Bot       @relation(fields: [botId], references: [id], onDelete: Cascade)
+  title       String    @default("New Conversation")
+  summary     String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  archivedAt  DateTime?
+
+  messages Message[]
+
+  @@index([userId])
+  @@index([botId])
+  @@index([updatedAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       // user, assistant, system, tool
+  content        String       @db.Text
+  metadata       Json?        // Tokens, latency, finishReason, raw details
+  toolCalls      Json?        // Executed tool calls
+  toolResults    Json?        // Results from tool executions
+  tokensUsed     Int?         @default(0)
+  latencyMs      Int?         @default(0)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+// -----------------------------------------------------------------------------
+// Memory Architecture
+// -----------------------------------------------------------------------------
+
+model Memory {
+  id             String    @id @default(cuid())
+  userId         String
+  botId          String?   // null for GLOBAL memories, or specific bot ID
+  bot            Bot?      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  conversationId String?   // optional link to conversation
+  type           String    @default("BOT") // GLOBAL, BOT, CONVERSATION, APPLICATION
+  category       String    @default("general") // preference, habit, goal, tech_stack, relationship, general
+  content        String    @db.Text
+  embedding      String?   @db.Text // Serialized vector or embedding metadata
+  learnedAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([botId])
+  @@index([type])
+  @@index([category])
+}
+
+// -----------------------------------------------------------------------------
+// Applications & Tools
+// -----------------------------------------------------------------------------
+
+model Application {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  icon        String?  @default("⚡")
+  baseUrl     String?  // Optional connector endpoint
+  status      String   @default("ACTIVE") // ACTIVE, DISABLED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tools        Tool[]
+  integrations BotIntegration[]
+}
+
+model Tool {
+  id                 String      @id @default(cuid())
+  applicationId      String
+  application        Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  name               String      // e.g. "nox_create_task"
+  slug               String
+  description        String      @db.Text
+  inputSchema        Json        // JSON Schema for tool parameters
+  dangerous          Boolean     @default(false)
+  requiredPermission String      @default("READ_ONLY") // READ_ONLY, ASK_BEFORE_ACTION, AUTOMATIC
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@unique([applicationId, slug])
+  @@index([applicationId])
+}
+
+model BotIntegration {
+  id            String      @id @default(cuid())
+  botId         String
+  bot           Bot         @relation(fields: [botId], references: [id], onDelete: Cascade)
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  status        String      @default("ENABLED") // ENABLED, DISABLED
+  permissions   Json?       @default("{\"tasks\": \"ASK_BEFORE_ACTION\", \"calendar\": \"ASK_BEFORE_ACTION\", \"goals\": \"READ_ONLY\"}")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([botId, applicationId])
+  @@index([botId])
+  @@index([applicationId])
+}
+
+// -----------------------------------------------------------------------------
+// Audit Log
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String   // e.g. "BOT_CREATED", "CREDENTIAL_ADDED", "TOOL_EXECUTED"
+  entityType String   // BOT, CREDENTIAL, TOOL, MEMORY, INTEGRATION
+  entityId   String?
+  details    Json?    // Sanitized action metadata - NEVER secrets
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}

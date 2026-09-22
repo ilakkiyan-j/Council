@@ -3,166 +3,372 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Council — Multi-Persona AI Hub</title>
+  <title>Council V2 — Custom AI Bot Platform</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg: #090d16;
-      --card-bg: rgba(16, 23, 38, 0.75);
+      --card-bg: rgba(16, 23, 38, 0.7);
       --card-border: rgba(255, 255, 255, 0.08);
+      --sidebar-bg: rgba(11, 17, 30, 0.85);
+      --accent-primary: #3b82f6;
       --accent-rose: #f43f5e;
       --accent-cyan: #06b6d4;
       --accent-amber: #f59e0b;
+      --accent-emerald: #10b981;
+      --accent-purple: #8b5cf6;
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       --mono: 'JetBrains Mono', monospace;
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: radial-gradient(circle at 50% 0%, #151d30 0%, var(--bg) 80%);
+      background: radial-gradient(circle at 50% 0%, #17223b 0%, var(--bg) 75%);
       color: var(--text-main);
       font-family: var(--font);
       min-height: 100vh;
       display: flex;
+      overflow-x: hidden;
+    }
+
+    /* Left Sidebar Navigation */
+    .app-sidebar {
+      width: 260px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .brand-section {
+      padding: 1.5rem 1.25rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #f43f5e, #3b82f6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+    }
+    .brand-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-menu {
+      flex: 1;
+      padding: 1rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow-y: auto;
+    }
+    .nav-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      font-weight: 700;
+      padding: 0.75rem 0.75rem 0.25rem;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .nav-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+    .nav-item.active {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.3);
+      color: #60a5fa;
+      font-weight: 600;
+    }
+    .nav-item .icon { font-size: 1.1rem; }
+
+    .user-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: white;
+    }
+    .user-meta { font-size: 0.8rem; }
+    .user-meta .name { font-weight: 600; color: var(--text-main); }
+    .user-meta .role { font-size: 0.7rem; color: var(--text-muted); }
+
+    /* Main Content Area */
+    .app-main {
+      flex: 1;
+      height: 100vh;
+      overflow-y: auto;
+      display: flex;
       flex-direction: column;
     }
-    header {
-      border-bottom: 1px solid var(--card-border);
-      background: rgba(9, 13, 22, 0.85);
-      backdrop-filter: blur(12px);
+    .top-header {
       padding: 1rem 2rem;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      background: rgba(9, 13, 22, 0.6);
       display: flex;
       justify-content: space-between;
       align-items: center;
       position: sticky;
       top: 0;
-      z-index: 50;
+      z-index: 30;
     }
-    .brand {
+    .page-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .header-actions {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 12px;
     }
-    .brand-logo {
-      font-size: 1.5rem;
-      background: linear-gradient(135deg, #f43f5e, #06b6d4);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-    }
-    .status-badge {
+    .btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #34d399;
-      font-size: 0.75rem;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
       font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 9999px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+      font-family: var(--font);
     }
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      background: #10b981;
-      border-radius: 50%;
-      box-shadow: 0 0 8px #10b981;
+    .btn-primary {
+      background: #3b82f6;
+      color: white;
+      box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
     }
-    main {
+    .btn-primary:hover { background: #2563eb; }
+    .btn-outline {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--card-border);
+      color: var(--text-main);
+    }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.08); }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+
+    .content-body {
       flex: 1;
-      max-width: 1300px;
+      padding: 2rem;
+      max-width: 1400px;
       width: 100%;
       margin: 0 auto;
-      padding: 2rem;
+    }
+
+    /* Views */
+    .view-panel { display: none; }
+    .view-panel.active { display: block; }
+
+    /* Overview KPIs */
+    .kpi-grid {
       display: grid;
-      grid-template-columns: 340px 1fr;
-      gap: 1.5rem;
-    }
-    .sidebar {
-      display: flex;
-      flex-direction: column;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1.25rem;
+      margin-bottom: 2rem;
     }
-    .card {
+    .kpi-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 16px;
       padding: 1.25rem;
       backdrop-filter: blur(8px);
     }
-    .card-title {
-      font-size: 0.85rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      font-weight: 700;
-      margin-bottom: 0.85rem;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    .kpi-label { font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 6px; }
+    .kpi-val { font-size: 1.8rem; font-weight: 800; }
+
+    /* Bot Cards Grid */
+    .bot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
     }
-    .persona-btn {
-      width: 100%;
-      text-align: left;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid transparent;
-      border-radius: 12px;
-      padding: 10px 14px;
+    .bot-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
       display: flex;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-      color: var(--text-main);
-      transition: all 0.2s ease;
-      margin-bottom: 8px;
+      flex-direction: column;
+      gap: 1rem;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+      position: relative;
     }
-    .persona-btn:hover {
+    .bot-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.16);
+      box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5);
+    }
+    .bot-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .bot-avatar-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
       background: rgba(255, 255, 255, 0.06);
-    }
-    .persona-btn.active.sofi {
-      border-color: rgba(244, 63, 94, 0.4);
-      background: rgba(244, 63, 94, 0.12);
-    }
-    .persona-btn.active.riven {
-      border-color: rgba(6, 182, 212, 0.4);
-      background: rgba(6, 182, 212, 0.12);
-    }
-    .persona-btn.active.lucifer {
-      border-color: rgba(245, 158, 11, 0.4);
-      background: rgba(245, 158, 11, 0.12);
-    }
-    .persona-icon { font-size: 1.3rem; }
-    .persona-info .name { font-weight: 700; font-size: 0.95rem; }
-    .persona-info .role { font-size: 0.75rem; color: var(--text-muted); }
-    .memory-list {
-      max-height: 220px;
-      overflow-y: auto;
-      font-size: 0.8rem;
       display: flex;
-      flex-direction: column;
-      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.7rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
-    .memory-item {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 8px;
-      padding: 8px 10px;
-      line-height: 1.4;
+    .bot-status-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .status-active { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .status-draft { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .bot-name { font-size: 1.15rem; font-weight: 700; margin-top: 4px; }
+    .bot-role { font-size: 0.8rem; color: #38bdf8; font-weight: 600; }
+    .bot-desc { font-size: 0.84rem; color: var(--text-muted); line-height: 1.5; flex: 1; }
+    .bot-meta-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .chip {
+      font-size: 0.74rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
       color: #cbd5e1;
-    }
-    .chat-container {
+      font-family: var(--mono);
       display: flex;
-      flex-direction: column;
-      height: calc(100vh - 150px);
-      min-height: 600px;
+      align-items: center;
+      gap: 5px;
+    }
+    .bot-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .bot-actions .btn { flex: 1; justify-content: center; }
+
+    /* Chat View */
+    .chat-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 1.5rem;
+      height: calc(100vh - 140px);
+    }
+    .sessions-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sessions-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sessions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .session-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+    }
+    .session-item:hover { background: rgba(255, 255, 255, 0.04); }
+    .session-item.active {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.3);
+      color: #60a5fa;
+    }
+    .session-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .session-time { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+    .chat-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
       overflow: hidden;
     }
     .chat-header {
@@ -173,13 +379,7 @@
       align-items: center;
       background: rgba(255, 255, 255, 0.01);
     }
-    .active-persona-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .active-name { font-weight: 700; font-size: 1.1rem; }
-    .active-role { font-size: 0.8rem; color: var(--text-muted); }
+    .chat-active-info { display: flex; align-items: center; gap: 12px; }
     .chat-messages {
       flex: 1;
       padding: 1.5rem;
@@ -189,10 +389,10 @@
       gap: 1.25rem;
     }
     .msg {
-      max-width: 80%;
-      padding: 12px 16px;
-      border-radius: 14px;
-      line-height: 1.5;
+      max-width: 82%;
+      padding: 12px 18px;
+      border-radius: 16px;
+      line-height: 1.6;
       font-size: 0.92rem;
       position: relative;
     }
@@ -210,25 +410,77 @@
       color: #f1f5f9;
     }
     .msg-action-tag {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       margin-top: 8px;
+      margin-right: 6px;
       background: rgba(16, 185, 129, 0.15);
       border: 1px solid rgba(16, 185, 129, 0.3);
       color: #6ee7b7;
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       padding: 3px 8px;
       border-radius: 6px;
       font-family: var(--mono);
     }
     .chat-input-bar {
-      padding: 1rem;
+      padding: 1rem 1.25rem;
       border-top: 1px solid var(--card-border);
       display: flex;
       gap: 0.75rem;
-      background: rgba(9, 13, 22, 0.6);
+      background: rgba(9, 13, 22, 0.75);
     }
     .chat-input {
       flex: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: white;
+      font-family: var(--font);
+      outline: none;
+      resize: none;
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+    .chat-input:focus { border-color: #3b82f6; }
+
+    /* Bot Builder Form */
+    .form-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 2rem;
+      backdrop-filter: blur(12px);
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .form-step-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 1rem;
+    }
+    .form-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .form-control {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid var(--card-border);
       border-radius: 10px;
@@ -236,199 +488,828 @@
       color: white;
       font-family: var(--font);
       outline: none;
-      resize: none;
       font-size: 0.9rem;
     }
-    .chat-input:focus { border-color: #3b82f6; }
-    .send-btn {
-      background: #3b82f6;
-      border: none;
-      color: white;
-      font-weight: 600;
-      padding: 0 1.25rem;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: background 0.2s;
+    .form-control:focus { border-color: #3b82f6; }
+    textarea.form-control { resize: vertical; min-height: 90px; }
+
+    /* Providers & BYOK Grid */
+    .provider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem;
     }
-    .send-btn:hover { background: #2563eb; }
-    .debate-btn {
-      background: linear-gradient(135deg, #f43f5e, #f59e0b);
-      border: none;
-      color: white;
-      font-size: 0.8rem;
-      font-weight: 700;
-      padding: 6px 12px;
-      border-radius: 8px;
-      cursor: pointer;
+    .provider-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .provider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .provider-name { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .provider-meta {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: #0f172a;
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+    .modal-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem; }
+
+    /* Deliberation Studio */
+    .deliberate-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+    .transcript-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+      line-height: 1.6;
     }
   </style>
 </head>
 <body>
-  <header>
-    <div class="brand">
-      <span style="font-size: 1.6rem;">🏛️</span>
+  <!-- Sidebar -->
+  <aside class="app-sidebar">
+    <div class="brand-section">
+      <div class="brand-logo-icon">🏛️</div>
       <div>
-        <div class="brand-logo">COUNCIL</div>
-        <div style="font-size: 0.72rem; color: var(--text-muted);">Multi-Persona AI Executive Core</div>
+        <div class="brand-title">COUNCIL</div>
+        <div class="brand-sub">Custom AI Bot Platform</div>
       </div>
     </div>
-    <div style="display: flex; align-items: center; gap: 1rem;">
-      <button class="debate-btn" onclick="triggerDebate()">⚡ Summon Council Debate</button>
-      <div class="status-badge">
-        <div class="status-dot"></div>
-        <span>Online (Port 4100)</span>
+
+    <div class="nav-menu">
+      <div class="nav-label">Platform Core</div>
+      <div class="nav-item active" onclick="switchView('overview')">
+        <span class="icon">📊</span>
+        <span>Overview</span>
+      </div>
+      <div class="nav-item" onclick="switchView('bots')">
+        <span class="icon">🤖</span>
+        <span>My Bots</span>
+      </div>
+      <div class="nav-item" onclick="switchView('builder')">
+        <span class="icon">✨</span>
+        <span>Create Bot</span>
+      </div>
+      <div class="nav-item" onclick="switchView('chat')">
+        <span class="icon">💬</span>
+        <span>Bot Chat</span>
+      </div>
+      <div class="nav-item" onclick="switchView('deliberate')">
+        <span class="icon">⚡</span>
+        <span>Deliberation Studio</span>
+      </div>
+
+      <div class="nav-label">Configuration & BYOK</div>
+      <div class="nav-item" onclick="switchView('providers')">
+        <span class="icon">🔑</span>
+        <span>AI Providers (BYOK)</span>
+      </div>
+      <div class="nav-item" onclick="switchView('memory')">
+        <span class="icon">🧠</span>
+        <span>Memory Vault</span>
+      </div>
+      <div class="nav-item" onclick="switchView('integrations')">
+        <span class="icon">🔗</span>
+        <span>Integrations (Nox)</span>
       </div>
     </div>
-  </header>
 
-  <main>
-    <div class="sidebar">
-      <div class="card">
-        <div class="card-title">Select Active Persona</div>
-        <button class="persona-btn active sofi" onclick="setPersona('sofi')">
-          <span class="persona-icon">💖</span>
-          <div class="persona-info">
-            <div class="name">Sofi</div>
-            <div class="role">Executive PA & Girlfriend</div>
-          </div>
-        </button>
-        <button class="persona-btn riven" onclick="setPersona('riven')">
-          <span class="persona-icon">🧭</span>
-          <div class="persona-info">
-            <div class="name">Riven</div>
-            <div class="role">Chief Architect & Shaper</div>
-          </div>
-        </button>
-        <button class="persona-btn lucifer" onclick="setPersona('lucifer')">
-          <span class="persona-icon">🔥</span>
-          <div class="persona-info">
-            <div class="name">Lucifer</div>
-            <div class="role">Auditor & Devil's Advocate</div>
-          </div>
-        </button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">🧠 Persistent Memory Vault</div>
-        <div class="memory-list" id="memoryList">
-          <div class="memory-item">Loading permanent facts...</div>
+    <div class="user-footer">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div class="user-avatar" id="sidebarAvatar">IJ</div>
+        <div class="user-meta">
+          <div class="name" id="sidebarUserName">Ilakkiyan J</div>
+          <div class="role">Workspace Owner</div>
         </div>
       </div>
-
-      <div class="card">
-        <div class="card-title">🔗 Connected Systems</div>
-        <div style="font-size: 0.8rem; color: #94a3b8; display: flex; flex-direction: column; gap: 6px;">
-          <div>• <strong>Nox API:</strong> <code>/api/v1 (Goals, Tasks, Roadmaps)</code></div>
-          <div>• <strong>LLMs:</strong> Gemini Flash & Groq Llama-3.3</div>
-          <div>• <strong>Session Memory:</strong> File-Backed Disk Cache</div>
-        </div>
-      </div>
+      <span style="font-size: 0.8rem; color: #10b981;" title="Connected to PostgreSQL">● Live</span>
     </div>
+  </aside>
 
-    <div class="chat-container">
-      <div class="chat-header">
-        <div class="active-persona-title">
-          <span id="activeIcon" style="font-size: 1.5rem;">💖</span>
+  <!-- Main Content -->
+  <main class="app-main">
+    <header class="top-header">
+      <div class="page-title" id="pageTitle">Platform Overview</div>
+      <div class="header-actions">
+        <button class="btn btn-outline" onclick="loadAllData()">
+          <span>🔄</span> Refresh
+        </button>
+        <button class="btn btn-primary" onclick="openCreateBot()">
+          <span>➕</span> Create New Bot
+        </button>
+      </div>
+    </header>
+
+    <div class="content-body">
+      <!-- 1. OVERVIEW VIEW -->
+      <section id="view-overview" class="view-panel active">
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Active User Bots</div>
+            <div class="kpi-val" id="kpiBotsCount">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Connected Providers (BYOK)</div>
+            <div class="kpi-val" id="kpiCredsCount">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Permanent Memories</div>
+            <div class="kpi-val" id="kpiMemoryCount">0</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Available Tools</div>
+            <div class="kpi-val" id="kpiToolsCount">11</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+          <h2 style="font-size: 1.15rem; font-weight: 700;">Your Custom AI Bots</h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Council is the platform. Bots are your data.</span>
+        </div>
+        <div class="bot-grid" id="overviewBotsGrid">
+          <div style="color: var(--text-muted);">Loading bots from database...</div>
+        </div>
+      </section>
+
+      <!-- 2. MY BOTS VIEW -->
+      <section id="view-bots" class="view-panel">
+        <div class="bot-grid" id="myBotsGrid"></div>
+      </section>
+
+      <!-- 3. BOT BUILDER VIEW -->
+      <section id="view-builder" class="view-panel">
+        <div class="form-card">
+          <div class="form-step-title">
+            <span>✨</span>
+            <span id="builderTitle">Create Custom AI Bot</span>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+            Configure your Bot's identity, persona, instructions, model provider, and application integrations.
+          </p>
+
+          <form id="botForm" onsubmit="handleSaveBot(event)">
+            <input type="hidden" id="botEditId" value="">
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Bot Name *</label>
+                <input class="form-control" id="botName" placeholder="e.g. Aegis, Sofi, Jarvis" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Avatar Emoji</label>
+                <input class="form-control" id="botAvatar" placeholder="e.g. 🤖, 💖, 🧭, 🛡️" value="🤖">
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Role / Title *</label>
+                <input class="form-control" id="botRole" placeholder="e.g. Security Auditor, Personal Assistant, Coding Mentor" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Accent Color</label>
+                <select class="form-control" id="botColor">
+                  <option value="indigo">Indigo</option>
+                  <option value="rose">Rose (Sofi)</option>
+                  <option value="cyan">Cyan (Riven)</option>
+                  <option value="amber">Amber (Lucifer)</option>
+                  <option value="emerald">Emerald</option>
+                  <option value="purple">Purple</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea class="form-control" id="botDesc" rows="2" placeholder="Brief summary of what this Bot does..."></textarea>
+            </div>
+
+            <div style="margin: 1.5rem 0 1rem; border-top: 1px solid var(--card-border); padding-top: 1.25rem;">
+              <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem;">Model & Credential (BYOK)</h3>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label class="form-label">AI Provider</label>
+                  <select class="form-control" id="botProvider" onchange="updateCredentialOptions()">
+                    <option value="gemini">Google Gemini</option>
+                    <option value="groq">Groq Cloud</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="ollama">Ollama (Local)</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Model Identifier</label>
+                  <input class="form-control" id="botModel" placeholder="e.g. gemini-2.5-flash, llama-3.3-70b-versatile, gpt-4o-mini" value="gemini-2.5-flash">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">User Provider Credential</label>
+                <div style="display: flex; gap: 8px;">
+                  <select class="form-control" id="botCredentialId" style="flex: 1;">
+                    <option value="">No credential selected</option>
+                  </select>
+                  <button type="button" class="btn btn-outline" onclick="openAddCredentialModal()">+ Add Key</button>
+                </div>
+                <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                  Select your encrypted credential. Council never uses a global server API key for your requests.
+                </span>
+              </div>
+            </div>
+
+            <div style="margin: 1.5rem 0 1rem; border-top: 1px solid var(--card-border); padding-top: 1.25rem;">
+              <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem;">System Instructions</h3>
+              <div class="form-group">
+                <label class="form-label">System Prompt *</label>
+                <textarea class="form-control" id="botSystemPrompt" rows="4" placeholder="You are an AI assistant..." required></textarea>
+              </div>
+            </div>
+
+            <div style="margin: 1.5rem 0 1rem; border-top: 1px solid var(--card-border); padding-top: 1.25rem;">
+              <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem;">Connected Applications & Permissions</h3>
+              <div style="display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px;">
+                <input type="checkbox" id="botIntegrateNox" style="width: 18px; height: 18px;">
+                <div>
+                  <div style="font-weight: 600; font-size: 0.9rem;">Connect to Nox (Executive Life OS)</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Gives this bot real-time visibility into Tasks, Goals, Roadmaps, Calendar, and Habits.</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 2rem;">
+              <button type="button" class="btn btn-outline" onclick="switchView('bots')">Cancel</button>
+              <button type="submit" class="btn btn-primary" id="btnSaveBot">Save Bot</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- 4. BOT CHAT VIEW -->
+      <section id="view-chat" class="view-panel">
+        <div class="chat-layout">
+          <!-- Session List -->
+          <div class="sessions-card">
+            <div class="sessions-header">
+              <span style="font-weight: 700; font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted);">Conversations</span>
+              <button class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem;" onclick="createNewChatSession()">+ New</button>
+            </div>
+            <div class="sessions-list" id="chatSessionsList">
+              <div style="color: var(--text-muted); font-size: 0.8rem; padding: 8px;">No sessions yet.</div>
+            </div>
+          </div>
+
+          <!-- Chat Window -->
+          <div class="chat-container">
+            <div class="chat-header">
+              <div class="chat-active-info">
+                <span id="chatBotAvatar" style="font-size: 1.6rem;">🤖</span>
+                <div>
+                  <div id="chatBotName" style="font-weight: 700; font-size: 1.1rem;">Select a Bot</div>
+                  <div id="chatBotRole" style="font-size: 0.78rem; color: #38bdf8;">Custom AI Bot</div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="chatBotSelector" class="form-control" style="padding: 6px 10px; font-size: 0.82rem;" onchange="handleSelectChatBot(this.value)">
+                  <!-- Injected via JS -->
+                </select>
+                <button class="btn btn-outline" style="padding: 6px 10px; font-size: 0.75rem;" onclick="handleResetActiveChat()">Reset</button>
+              </div>
+            </div>
+
+            <div class="chat-messages" id="chatMessagesBox">
+              <div class="msg assistant">
+                Hello! I am ready to assist you. Select your Bot and ask anything!
+              </div>
+            </div>
+
+            <div class="chat-input-bar">
+              <textarea id="chatInputArea" class="chat-input" rows="1" placeholder="Type a message... (Press Enter to send, Shift+Enter for new line)"></textarea>
+              <button class="btn btn-primary" id="btnSendChat" onclick="handleSendChatMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. DELIBERATION STUDIO -->
+      <section id="view-deliberate" class="view-panel">
+        <div class="deliberate-card">
+          <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">⚡ Multi-Bot Deliberation Council</h2>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;">
+            Summon your custom bots to debate any proposal, architecture, or roadmap sequentially.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">Debate Topic or Dilemma *</label>
+            <input class="form-control" id="deliberateTopic" placeholder="e.g. Should I migrate our database to distributed CockroachDB or stay with PostgreSQL?">
+          </div>
+
+          <button class="btn btn-primary" id="btnStartDeliberation" onclick="handleRunDeliberation()">
+            <span>⚡</span> Summon Council Deliberation
+          </button>
+        </div>
+
+        <div id="deliberationResults" style="display: none;">
+          <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 1rem;">Deliberation Transcript</h3>
+          <div id="deliberationItems"></div>
+        </div>
+      </section>
+
+      <!-- 6. AI PROVIDERS (BYOK) -->
+      <section id="view-providers" class="view-panel">
+        <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <div class="active-name" id="activeName">Sofi</div>
-            <div class="active-role" id="activeRole">Executive PA & Girlfriend</div>
+            <h2 style="font-size: 1.2rem; font-weight: 700;">Bring Your Own Key (BYOK) Vault</h2>
+            <p style="font-size: 0.82rem; color: var(--text-muted);">
+              Your keys are encrypted using AES-256-GCM. Plaintext keys are NEVER stored or returned to the browser.
+            </p>
           </div>
+          <button class="btn btn-primary" onclick="openAddCredentialModal()">+ Connect Provider</button>
         </div>
-        <button onclick="clearCurrentSession()" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: #94a3b8; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; cursor: pointer;">
-          Reset Session
-        </button>
-      </div>
 
-      <div class="chat-messages" id="chatMessages">
-        <div class="msg assistant">
-          Hey babe! I have full visibility into your Nox tasks, long-term goals, roadmaps, and learning tracks. Let's negotiate your plan for today so you crush your targets without burning out. What's on your mind? 💖
+        <div class="provider-grid" id="providersListGrid">
+          <!-- Injected via JS -->
         </div>
-      </div>
+      </section>
 
-      <div class="chat-input-bar">
-        <textarea id="chatInput" class="chat-input" rows="1" placeholder="Type a message or plan to discuss... (Press Enter to send)"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
-      </div>
+      <!-- 7. MEMORY VAULT -->
+      <section id="view-memory" class="view-panel">
+        <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2 style="font-size: 1.2rem; font-weight: 700;">🧠 Persistent Memory Vault</h2>
+            <p style="font-size: 0.82rem; color: var(--text-muted);">
+              Inspect user-wide global preferences and bot-specific isolated memories.
+            </p>
+          </div>
+          <button class="btn btn-outline" onclick="openAddMemoryModal()">+ Add Memory</button>
+        </div>
+
+        <div id="memoryTableContainer">
+          <!-- Injected via JS -->
+        </div>
+      </section>
+
+      <!-- 8. INTEGRATIONS -->
+      <section id="view-integrations" class="view-panel">
+        <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Registered Applications</h2>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+          External systems that bots can access with granular permission matrices.
+        </p>
+
+        <div class="provider-grid" id="appsListGrid">
+          <!-- Injected via JS -->
+        </div>
+      </section>
     </div>
   </main>
 
+  <!-- Modal: Add Credential -->
+  <div class="modal-overlay" id="modalAddCredential">
+    <div class="modal-box">
+      <div class="modal-title">Connect AI Provider</div>
+      <form onsubmit="handleSaveCredential(event)">
+        <div class="form-group">
+          <label class="form-label">Provider *</label>
+          <select class="form-control" id="credProvider" required>
+            <option value="gemini">Google Gemini (Free at aistudio.google.com)</option>
+            <option value="groq">Groq Cloud (Free at console.groq.com)</option>
+            <option value="openai">OpenAI</option>
+            <option value="ollama">Ollama (Local Endpoint)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Credential Label *</label>
+          <input class="form-control" id="credLabel" placeholder="e.g. My Personal Gemini Key" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">API Key *</label>
+          <input class="form-control" id="credKey" type="password" placeholder="sk-... or AIza..." required>
+        </div>
+        <div style="font-size: 0.74rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+          🔒 Council validates this key directly with the provider, encrypts it with AES-256-GCM, and persists only the ciphertext.
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modalAddCredential')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitCred">Validate & Encrypt</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Memory -->
+  <div class="modal-overlay" id="modalAddMemory">
+    <div class="modal-box">
+      <div class="modal-title">Add Permanent Memory</div>
+      <form onsubmit="handleSaveMemory(event)">
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-control" id="memCategory">
+            <option value="general">General</option>
+            <option value="preference">Preference</option>
+            <option value="goal">Goal</option>
+            <option value="tech_stack">Tech Stack</option>
+            <option value="habit">Habit</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fact or Preference *</label>
+          <textarea class="form-control" id="memContent" rows="3" placeholder="e.g. User prefers concise answers and TypeScript over Python." required></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-outline" onclick="closeModal('modalAddMemory')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Memory</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
-    let currentPersona = 'sofi';
-    let sessionId = 'dashboard-session-' + Date.now();
+    // State
+    let allBots = [];
+    let allCredentials = [];
+    let allMemories = [];
+    let allApps = [];
+    let activeChatBotId = null;
+    let activeConversationId = null;
 
-    const PERSONA_DETAILS = {
-      sofi: { name: 'Sofi', role: 'Executive PA & Girlfriend', icon: '💖' },
-      riven: { name: 'Riven', role: 'Chief Architect & Idea Shaper', icon: '🧭' },
-      lucifer: { name: 'Lucifer', role: 'Partner in Crime & Auditor', icon: '🔥' },
-    };
+    // Navigation
+    function switchView(viewId) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
 
-    function setPersona(pid) {
-      currentPersona = pid;
-      document.querySelectorAll('.persona-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.classList.contains(pid)) btn.classList.add('active');
-      });
-      const info = PERSONA_DETAILS[pid];
-      document.getElementById('activeIcon').textContent = info.icon;
-      document.getElementById('activeName').textContent = info.name;
-      document.getElementById('activeRole').textContent = info.role;
-    }
+      const targetView = document.getElementById(`view-${viewId}`);
+      if (targetView) targetView.classList.add('active');
 
-    async function fetchMemory() {
-      try {
-        const res = await fetch('/api/v1/memory');
-        const json = await res.json();
-        const facts = json?.data?.facts || [];
-        const container = document.getElementById('memoryList');
-        if (facts.length === 0) {
-          container.innerHTML = '<div class="memory-item">No persistent facts stored yet.</div>';
-          return;
-        }
-        container.innerHTML = facts.map(f => `<div class="memory-item"><strong>[${f.category}]</strong> ${f.fact}</div>`).join('');
-      } catch (err) {
-        console.warn('Failed to load memory:', err);
+      const activeNav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.getAttribute('onclick')?.includes(viewId));
+      if (activeNav) activeNav.classList.add('active');
+
+      const titles = {
+        overview: 'Platform Overview',
+        bots: 'My AI Bots',
+        builder: 'Bot Workshop & Builder',
+        chat: 'Universal Bot Chat',
+        deliberate: 'Deliberation Studio',
+        providers: 'AI Providers & BYOK Vault',
+        memory: 'Permanent Memory Vault',
+        integrations: 'Connected Applications',
+      };
+      document.getElementById('pageTitle').textContent = titles[viewId] || 'Council V2';
+
+      if (viewId === 'chat' && allBots.length > 0 && !activeChatBotId) {
+        handleSelectChatBot(allBots[0].id);
       }
     }
 
-    async function sendMessage() {
-      const input = document.getElementById('chatInput');
-      const text = input.value.trim();
-      if (!text) return;
+    // API calls
+    async function apiFetch(endpoint, options = {}) {
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      const res = await fetch(`/api/v1${endpoint}`, { ...options, headers });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error?.message || `HTTP ${res.status}`);
+      }
+      return json.data !== undefined ? json.data : json;
+    }
 
-      appendMsg(text, 'user');
+    // Load initial data
+    async function loadAllData() {
+      try {
+        const [bots, creds, mem, apps] = await Promise.all([
+          apiFetch('/bots').catch(() => []),
+          apiFetch('/provider-credentials').catch(() => []),
+          apiFetch('/memory').catch(() => ({ facts: [] })),
+          apiFetch('/applications').catch(() => []),
+        ]);
+
+        allBots = bots || [];
+        allCredentials = creds || [];
+        allMemories = mem?.facts || [];
+        allApps = apps || [];
+
+        renderKPIs();
+        renderBots();
+        renderProviders();
+        renderMemories();
+        renderApps();
+        populateChatSelector();
+      } catch (err) {
+        console.error('Failed to load Council data:', err);
+      }
+    }
+
+    function renderKPIs() {
+      document.getElementById('kpiBotsCount').textContent = allBots.length;
+      document.getElementById('kpiCredsCount').textContent = allCredentials.length;
+      document.getElementById('kpiMemoryCount').textContent = allMemories.length;
+    }
+
+    function renderBots() {
+      const renderCard = (b) => {
+        const hasNox = b.integrations?.some(i => i.application.slug === 'nox' && i.status === 'ENABLED');
+        const credLabel = b.modelConfig?.credential?.label || 'No BYOK Key Linked';
+        return `
+          <div class="bot-card">
+            <div class="bot-header">
+              <div class="bot-avatar-box">${b.avatar || '🤖'}</div>
+              <span class="bot-status-tag ${b.status === 'ACTIVE' ? 'status-active' : 'status-draft'}">${b.status}</span>
+            </div>
+            <div>
+              <div class="bot-name">${b.name}</div>
+              <div class="bot-role">${b.role}</div>
+            </div>
+            <div class="bot-desc">${b.description || 'No description provided.'}</div>
+            <div class="bot-meta-chips">
+              <span class="chip">⚙️ ${b.modelConfig?.provider || 'gemini'} / ${b.modelConfig?.model || 'default'}</span>
+              <span class="chip">🔑 ${credLabel}</span>
+              ${hasNox ? '<span class="chip" style="color: #6ee7b7;">⚡ Nox Connected</span>' : '<span class="chip">Standalone</span>'}
+            </div>
+            <div class="bot-actions">
+              <button class="btn btn-primary" onclick="startChatWithBot('${b.id}')">💬 Chat</button>
+              <button class="btn btn-outline" onclick="openEditBot('${b.id}')">✏️ Edit</button>
+              <button class="btn btn-outline" onclick="handleDuplicateBot('${b.id}')">📑 Copy</button>
+              <button class="btn btn-danger" onclick="handleDeleteBot('${b.id}', '${b.name}')">🗑️</button>
+            </div>
+          </div>
+        `;
+      };
+
+      const html = allBots.length > 0
+        ? allBots.map(renderCard).join('')
+        : '<div style="color: var(--text-muted);">No bots found. Click "Create New Bot" to add one!</div>';
+
+      document.getElementById('overviewBotsGrid').innerHTML = html;
+      document.getElementById('myBotsGrid').innerHTML = html;
+    }
+
+    function renderProviders() {
+      const supported = [
+        { id: 'gemini', name: 'Google Gemini', icon: '✨' },
+        { id: 'groq', name: 'Groq Cloud', icon: '⚡' },
+        { id: 'openai', name: 'OpenAI', icon: '🧠' },
+        { id: 'ollama', name: 'Ollama (Local)', icon: '💻' },
+      ];
+
+      const html = supported.map(p => {
+        const userCred = allCredentials.find(c => c.provider === p.id);
+        return `
+          <div class="provider-card">
+            <div class="provider-header">
+              <div class="provider-name"><span>${p.icon}</span> ${p.name}</div>
+              <span class="bot-status-tag ${userCred ? 'status-active' : 'status-draft'}">
+                ${userCred ? 'Connected ✓' : 'Not Connected'}
+              </span>
+            </div>
+            <div class="provider-meta">
+              ${userCred ? `
+                <div><strong>Label:</strong> ${userCred.label}</div>
+                <div><strong>Encrypted Key:</strong> <code>${userCred.maskedKey}</code></div>
+                <div><strong>Status:</strong> ${userCred.status}</div>
+                <div><strong>Active Bots Using Key:</strong> ${userCred.activeBotsCount || 0}</div>
+              ` : `
+                <div style="color: var(--text-muted);">No credential configured for this provider. User bots using this provider will ask to connect a key.</div>
+              `}
+            </div>
+            <div>
+              ${userCred ? `
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-outline" style="flex: 1;" onclick="handleTestCredential('${userCred.id}')">Test Connection</button>
+                  <button class="btn btn-danger" onclick="handleDeleteCredential('${userCred.id}')">Revoke</button>
+                </div>
+              ` : `
+                <button class="btn btn-primary" style="width: 100%;" onclick="openAddCredentialModal('${p.id}')">+ Add API Key</button>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('providersListGrid').innerHTML = html;
+    }
+
+    function renderMemories() {
+      const html = allMemories.length > 0 ? `
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          ${allMemories.map(m => `
+            <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span class="chip" style="display: inline-block; margin-bottom: 4px;">${m.category}</span>
+                <div style="font-size: 0.9rem; color: #f1f5f9;">${m.fact}</div>
+                <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">Source: ${m.sourcePersona || 'Global'}</div>
+              </div>
+              <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="handleDeleteMemory('${m.id}')">Delete</button>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div style="color: var(--text-muted);">No memories stored yet.</div>';
+
+      document.getElementById('memoryTableContainer').innerHTML = html;
+    }
+
+    function renderApps() {
+      const html = allApps.map(a => `
+        <div class="provider-card">
+          <div class="provider-header">
+            <div class="provider-name"><span>${a.icon || '⚡'}</span> ${a.name}</div>
+            <span class="bot-status-tag status-active">${a.status}</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-muted);">${a.description || ''}</div>
+          <div>
+            <div style="font-size: 0.78rem; font-weight: 700; color: #cbd5e1; margin-bottom: 6px;">Exposed Tools (${a.tools?.length || 0}):</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+              ${a.tools?.map(t => `<span class="chip">${t.name}</span>`).join('') || ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('appsListGrid').innerHTML = html;
+    }
+
+    function populateChatSelector() {
+      const sel = document.getElementById('chatBotSelector');
+      sel.innerHTML = allBots.map(b => `<option value="${b.id}">${b.avatar || '🤖'} ${b.name}</option>`).join('');
+      if (allBots.length > 0 && !activeChatBotId) {
+        handleSelectChatBot(allBots[0].id);
+      }
+    }
+
+    // Chat functionality
+    function startChatWithBot(botId) {
+      handleSelectChatBot(botId);
+      switchView('chat');
+    }
+
+    async function handleSelectChatBot(botId) {
+      activeChatBotId = botId;
+      const bot = allBots.find(b => b.id === botId);
+      if (!bot) return;
+
+      document.getElementById('chatBotAvatar').textContent = bot.avatar || '🤖';
+      document.getElementById('chatBotName').textContent = bot.name;
+      document.getElementById('chatBotRole').textContent = bot.role;
+      document.getElementById('chatBotSelector').value = botId;
+
+      await loadBotConversations(botId);
+    }
+
+    async function loadBotConversations(botId) {
+      try {
+        const convs = await apiFetch(`/conversations?botId=${botId}`);
+        const container = document.getElementById('chatSessionsList');
+
+        if (convs.length === 0) {
+          container.innerHTML = '<div style="color: var(--text-muted); font-size: 0.8rem; padding: 8px;">No sessions yet. Type a message to start!</div>';
+          activeConversationId = null;
+          document.getElementById('chatMessagesBox').innerHTML = `
+            <div class="msg assistant">
+              Hey! I'm <strong>${document.getElementById('chatBotName').textContent}</strong>. How can I help you today?
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = convs.map(c => `
+          <div class="session-item ${c.id === activeConversationId ? 'active' : ''}" onclick="loadConversationHistory('${c.id}')">
+            <div class="session-title">${c.title}</div>
+            <div class="session-time">${new Date(c.updatedAt).toLocaleDateString()} • ${c._count?.messages || 0} msgs</div>
+          </div>
+        `).join('');
+
+        if (!activeConversationId || !convs.some(c => c.id === activeConversationId)) {
+          loadConversationHistory(convs[0].id);
+        }
+      } catch (err) {
+        console.warn('Failed to load conversations:', err);
+      }
+    }
+
+    async function loadConversationHistory(convId) {
+      activeConversationId = convId;
+      document.querySelectorAll('.session-item').forEach(i => i.classList.remove('active'));
+
+      try {
+        const conv = await apiFetch(`/conversations/${convId}`);
+        const container = document.getElementById('chatMessagesBox');
+        if (!conv.messages || conv.messages.length === 0) {
+          container.innerHTML = '<div class="msg assistant">Session started. Send a message to begin!</div>';
+          return;
+        }
+
+        container.innerHTML = conv.messages.map(m => {
+          let actionsHtml = '';
+          if (m.toolCalls && Array.isArray(m.toolCalls) && m.toolCalls.length > 0) {
+            actionsHtml = m.toolCalls.map(a => `<div class="msg-action-tag">⚡ Executed: ${a.name}</div>`).join('');
+          }
+          return `
+            <div class="msg ${m.role}">
+              ${m.content.replace(/\n/g, '<br>')}
+              ${actionsHtml}
+            </div>
+          `;
+        }).join('');
+        container.scrollTop = container.scrollHeight;
+      } catch (err) {
+        console.error('Failed to load history:', err);
+      }
+    }
+
+    async function createNewChatSession() {
+      if (!activeChatBotId) return;
+      try {
+        const newConv = await apiFetch('/conversations', {
+          method: 'POST',
+          body: JSON.stringify({ botId: activeChatBotId }),
+        });
+        activeConversationId = newConv.id;
+        await loadBotConversations(activeChatBotId);
+        document.getElementById('chatMessagesBox').innerHTML = '<div class="msg assistant">New session started!</div>';
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function handleSendChatMessage() {
+      const input = document.getElementById('chatInputArea');
+      const text = input.value.trim();
+      if (!text || !activeChatBotId) return;
+
+      appendChatMessage(text, 'user');
       input.value = '';
 
-      const sendBtn = document.getElementById('sendBtn');
+      const sendBtn = document.getElementById('btnSendChat');
       sendBtn.disabled = true;
       sendBtn.textContent = '...';
 
       try {
-        const res = await fetch('/api/v1/chat', {
+        const result = await apiFetch('/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            persona: currentPersona,
+            botId: activeChatBotId,
+            conversationId: activeConversationId,
             message: text,
-            sessionId,
           }),
         });
-        const json = await res.json();
-        const data = json.data;
-        appendMsg(data.reply, 'assistant', data.executedActions);
-        fetchMemory();
+
+        appendChatMessage(result.reply, 'assistant', result.executedActions);
+        if (result.conversationId) {
+          activeConversationId = result.conversationId;
+        }
+        loadBotConversations(activeChatBotId);
       } catch (err) {
-        appendMsg(`Error: Couldn't reach Council. (${err.message})`, 'assistant');
+        appendChatMessage(`Error: ${err.message}`, 'assistant');
       } finally {
         sendBtn.disabled = false;
         sendBtn.textContent = 'Send';
       }
     }
 
-    function appendMsg(content, role, actions) {
-      const container = document.getElementById('chatMessages');
+    function appendChatMessage(content, role, actions) {
+      const box = document.getElementById('chatMessagesBox');
       const div = document.createElement('div');
       div.className = `msg ${role}`;
       div.innerHTML = content.replace(/\n/g, '<br>');
+
       if (actions && actions.length > 0) {
         actions.forEach(a => {
           const act = document.createElement('div');
@@ -437,53 +1318,282 @@
           div.appendChild(act);
         });
       }
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
+
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
     }
 
-    async function triggerDebate() {
-      const topic = prompt('Enter a project idea, decision, or launch deadline for the Council to debate:', 'Should I rewrite my backend in Go or stick with TypeScript/Node.js?');
-      if (!topic) return;
+    async function handleResetActiveChat() {
+      if (!activeConversationId) return;
+      if (confirm('Clear message history for this conversation?')) {
+        await apiFetch(`/conversations/${activeConversationId}/clear`, { method: 'DELETE' });
+        loadConversationHistory(activeConversationId);
+      }
+    }
 
-      appendMsg(`🏛️ [Summoned Council]: Debate on "${topic}"`, 'user');
+    // Deliberation
+    async function handleRunDeliberation() {
+      const topicInput = document.getElementById('deliberateTopic');
+      const topic = topicInput.value.trim();
+      if (!topic) {
+        alert('Please enter a topic for debate.');
+        return;
+      }
+
+      const btn = document.getElementById('btnStartDeliberation');
+      btn.disabled = true;
+      btn.textContent = 'Deliberating...';
+
+      const resultsDiv = document.getElementById('deliberationResults');
+      const itemsContainer = document.getElementById('deliberationItems');
+      resultsDiv.style.display = 'block';
+      itemsContainer.innerHTML = '<div style="color: var(--text-muted); padding: 12px;">Council members are convening and analyzing sequentially...</div>';
 
       try {
-        const res = await fetch('/api/v1/council/debate', {
+        const result = await apiFetch('/council/deliberate', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ topic }),
         });
-        const json = await res.json();
-        const deliberation = json?.data?.deliberation || [];
 
-        deliberation.forEach(d => {
-          if (d.opinion) {
-            appendMsg(`<strong>${d.name} (${d.role})</strong>:<br>${d.opinion}`, 'assistant');
-          } else if (d.synthesis) {
-            appendMsg(`<strong>${d.name} (Final Synthesis)</strong>:<br>${d.synthesis}`, 'assistant');
-          }
-        });
+        const deliberation = result.deliberation || [];
+        itemsContainer.innerHTML = deliberation.map(d => `
+          <div class="transcript-item">
+            <div style="font-weight: 700; color: #38bdf8; font-size: 0.95rem; margin-bottom: 4px;">
+              ${d.name} (${d.role}) ${d.synthesis ? '• Final Synthesis' : ''}
+            </div>
+            <div>${(d.synthesis || d.opinion || '').replace(/\n/g, '<br>')}</div>
+          </div>
+        `).join('');
       } catch (err) {
-        appendMsg(`Debate failed: ${err.message}`, 'assistant');
+        itemsContainer.innerHTML = `<div style="color: #f87171;">Deliberation failed: ${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Summon Council Deliberation';
       }
     }
 
-    async function clearCurrentSession() {
-      if (confirm('Reset this session history?')) {
-        await fetch(`/api/v1/sessions/${sessionId}`, { method: 'DELETE' });
-        sessionId = 'dashboard-session-' + Date.now();
-        document.getElementById('chatMessages').innerHTML = '<div class="msg assistant">Session cleared! What would you like to discuss next?</div>';
+    // Bot Builder
+    function openCreateBot() {
+      document.getElementById('botEditId').value = '';
+      document.getElementById('builderTitle').textContent = 'Create Custom AI Bot';
+      document.getElementById('botForm').reset();
+      updateCredentialOptions();
+      switchView('builder');
+    }
+
+    function openEditBot(botId) {
+      const bot = allBots.find(b => b.id === botId);
+      if (!bot) return;
+
+      document.getElementById('botEditId').value = bot.id;
+      document.getElementById('builderTitle').textContent = `Edit Bot: ${bot.name}`;
+      document.getElementById('botName').value = bot.name;
+      document.getElementById('botAvatar').value = bot.avatar || '🤖';
+      document.getElementById('botRole').value = bot.role || '';
+      document.getElementById('botColor').value = bot.color || 'indigo';
+      document.getElementById('botDesc').value = bot.description || '';
+      document.getElementById('botProvider').value = bot.modelConfig?.provider || 'gemini';
+      document.getElementById('botModel').value = bot.modelConfig?.model || 'gemini-2.5-flash';
+      document.getElementById('botSystemPrompt').value = bot.instruction?.systemPrompt || '';
+
+      const hasNox = bot.integrations?.some(i => i.application.slug === 'nox' && i.status === 'ENABLED');
+      document.getElementById('botIntegrateNox').checked = !!hasNox;
+
+      updateCredentialOptions();
+      if (bot.modelConfig?.credentialId) {
+        document.getElementById('botCredentialId').value = bot.modelConfig.credentialId;
+      }
+
+      switchView('builder');
+    }
+
+    function updateCredentialOptions() {
+      const provider = document.getElementById('botProvider').value;
+      const credSelect = document.getElementById('botCredentialId');
+      const filtered = allCredentials.filter(c => c.provider === provider);
+
+      credSelect.innerHTML = `
+        <option value="">No credential selected</option>
+        ${filtered.map(c => `<option value="${c.id}">${c.label} (${c.maskedKey})</option>`).join('')}
+      `;
+    }
+
+    async function handleSaveBot(e) {
+      e.preventDefault();
+      const editId = document.getElementById('botEditId').value;
+
+      const payload = {
+        name: document.getElementById('botName').value.trim(),
+        avatar: document.getElementById('botAvatar').value.trim() || '🤖',
+        role: document.getElementById('botRole').value.trim(),
+        color: document.getElementById('botColor').value,
+        description: document.getElementById('botDesc').value.trim(),
+        instruction: {
+          systemPrompt: document.getElementById('botSystemPrompt').value.trim(),
+        },
+        modelConfig: {
+          provider: document.getElementById('botProvider').value,
+          model: document.getElementById('botModel').value.trim(),
+          credentialId: document.getElementById('botCredentialId').value || null,
+        },
+        integrations: [],
+      };
+
+      if (document.getElementById('botIntegrateNox').checked) {
+        const noxApp = allApps.find(a => a.slug === 'nox');
+        if (noxApp) {
+          payload.integrations.push({
+            applicationId: noxApp.id,
+            permissions: { tasks: 'ASK_BEFORE_ACTION', calendar: 'ASK_BEFORE_ACTION', goals: 'READ_ONLY' },
+          });
+        }
+      }
+
+      const btn = document.getElementById('btnSaveBot');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        if (editId) {
+          await apiFetch(`/bots/${editId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        } else {
+          await apiFetch('/bots', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        await loadAllData();
+        switchView('bots');
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Bot';
       }
     }
 
-    document.getElementById('chatInput').addEventListener('keydown', (e) => {
+    async function handleDeleteBot(botId, botName) {
+      if (confirm(`Are you sure you want to delete "${botName}"?\nCouncil will continue functioning normally without it.`)) {
+        try {
+          await apiFetch(`/bots/${botId}`, { method: 'DELETE' });
+          await loadAllData();
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+    }
+
+    async function handleDuplicateBot(botId) {
+      try {
+        await apiFetch(`/bots/${botId}/duplicate`, { method: 'POST' });
+        await loadAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Modal helpers
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function openAddCredentialModal(preselectedProvider) {
+      if (preselectedProvider) {
+        document.getElementById('credProvider').value = preselectedProvider;
+      }
+      openModal('modalAddCredential');
+    }
+
+    function openAddMemoryModal() {
+      openModal('modalAddMemory');
+    }
+
+    async function handleSaveCredential(e) {
+      e.preventDefault();
+      const btn = document.getElementById('btnSubmitCred');
+      btn.disabled = true;
+      btn.textContent = 'Validating with provider...';
+
+      try {
+        await apiFetch('/provider-credentials', {
+          method: 'POST',
+          body: JSON.stringify({
+            provider: document.getElementById('credProvider').value,
+            label: document.getElementById('credLabel').value.trim(),
+            apiKey: document.getElementById('credKey').value.trim(),
+          }),
+        });
+        closeModal('modalAddCredential');
+        document.getElementById('credKey').value = '';
+        await loadAllData();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Validate & Encrypt';
+      }
+    }
+
+    async function handleTestCredential(credId) {
+      try {
+        const result = await apiFetch(`/provider-credentials/${credId}/test`, { method: 'POST' });
+        if (result.valid) {
+          alert('✓ Credential tested successfully! Provider authenticated.');
+        } else {
+          alert(`✗ Credential failed validation: ${result.error}`);
+        }
+        await loadAllData();
+      } catch (err) {
+        alert(`Error testing credential: ${err.message}`);
+      }
+    }
+
+    async function handleDeleteCredential(credId) {
+      if (confirm('Revoke and delete this provider credential?\nBots using this credential will show "Credential unavailable".')) {
+        try {
+          await apiFetch(`/provider-credentials/${credId}`, { method: 'DELETE' });
+          await loadAllData();
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+    }
+
+    async function handleSaveMemory(e) {
+      e.preventDefault();
+      try {
+        await apiFetch('/memory', {
+          method: 'POST',
+          body: JSON.stringify({
+            category: document.getElementById('memCategory').value,
+            fact: document.getElementById('memContent').value.trim(),
+          }),
+        });
+        closeModal('modalAddMemory');
+        document.getElementById('memContent').value = '';
+        await loadAllData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function handleDeleteMemory(memId) {
+      if (confirm('Delete this memory?')) {
+        try {
+          await apiFetch(`/memory/${memId}`, { method: 'DELETE' });
+          await loadAllData();
+        } catch (err) {
+          alert(err.message);
+        }
+      }
+    }
+
+    // Keyboard enter in chat
+    document.getElementById('chatInputArea').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendMessage();
+        handleSendChatMessage();
       }
     });
 
-    fetchMemory();
+    // Start
+    loadAllData();
   </script>
 </body>
 </html>
