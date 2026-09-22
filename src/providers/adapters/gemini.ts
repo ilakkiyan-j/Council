@@ -70,43 +70,92 @@ export class GeminiAdapter implements ModelProvider {
       requestBody.tools = [{ functionDeclarations }];
     }
 
-    const candidateModels = [model, 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'].filter(
-      (m, idx, arr) => arr.indexOf(m) === idx
-    );
+    // Clean requested model string
+    const rawRequested = (request.model || 'gemini-2.0-flash').replace(/^models\//, '').trim();
+
+    // Dynamically discover supported generation models for this exact API key
+    let verifiedKeyModels: string[] = [];
+    try {
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (listRes.ok) {
+        const listData: any = await listRes.json();
+        verifiedKeyModels = (listData.models || [])
+          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m: any) => m.name.replace(/^models\//, ''));
+      }
+    } catch {
+      // ignore
+    }
+
+    const priorityOrder = [
+      rawRequested,
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-exp',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro-latest',
+      'gemini-1.5-pro',
+    ];
+
+    const candidateModels: string[] = [];
+    for (const p of priorityOrder) {
+      if (verifiedKeyModels.includes(p) && !candidateModels.includes(p)) {
+        candidateModels.push(p);
+      }
+    }
+    for (const v of verifiedKeyModels) {
+      if (!candidateModels.includes(v)) {
+        candidateModels.push(v);
+      }
+    }
+    // Fallback if list endpoint failed
+    if (candidateModels.length === 0) {
+      candidateModels.push(rawRequested, 'gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash');
+    }
 
     let response: Response | null = null;
-    let usedModel = model;
+    let usedModel = candidateModels[0];
     let lastErrorMessage = '';
 
     for (const m of candidateModels) {
-      try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const endpoints = [
+        `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1/models/${m}:generateContent?key=${apiKey}`,
+      ];
 
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
+      for (const endpoint of endpoints) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-        if (res.ok) {
-          response = res;
-          usedModel = m;
-          break;
-        } else {
-          const errorJson: any = await res.json().catch(() => ({}));
-          lastErrorMessage = errorJson?.error?.message || `HTTP ${res.status}`;
-          if (res.status === 404 || res.status === 503) {
-            continue;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            response = res;
+            usedModel = m;
+            break;
           } else {
-            throw new Error(lastErrorMessage);
+            const errorJson: any = await res.json().catch(() => ({}));
+            lastErrorMessage = errorJson?.error?.message || `HTTP ${res.status}`;
+            if (res.status === 404 || res.status === 503) {
+              continue;
+            } else {
+              throw new Error(lastErrorMessage);
+            }
           }
+        } catch (err: any) {
+          lastErrorMessage = err.message;
         }
-      } catch (err: any) {
-        lastErrorMessage = err.message;
+      }
+
+      if (response && response.ok) {
+        break;
       }
     }
 

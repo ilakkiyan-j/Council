@@ -111,7 +111,7 @@ export async function seedUserDefaultBots(prisma: PrismaClient, userId: string):
       modelConfig: {
         create: {
           provider: 'gemini',
-          model: 'gemini-2.5-flash',
+          model: 'gemini-2.0-flash',
           temperature: 0.7,
           maxTokens: 2048,
         },
