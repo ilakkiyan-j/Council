@@ -108,12 +108,36 @@ You are an Adaptive AI. If the user asks you to adjust, adapt, or evolve your ch
 
     // Upcoming events
     if (userContext.upcomingEvents && userContext.upcomingEvents.length > 0) {
-      prompt += `- Upcoming Events:\n${userContext.upcomingEvents.map((e: any) => `  * "${e.title}" on ${e.date}`).join('\n')}\n`;
+      prompt += `- Upcoming Events & Hackathons (${userContext.upcomingEvents.length} scheduled):\n`;
+      prompt += `${userContext.upcomingEvents.map((e: any) => {
+        const d = e.date ? String(e.date).slice(0, 10) : '';
+        const t = e.startTime ? ` at ${e.startTime}` : '';
+        return `  * \"${e.title}\" on ${d}${t}`;
+      }).join('\n')}\n`;
+    }
+
+    // Active Reminders & Deadlines
+    if (userContext.reminders && userContext.reminders.length > 0) {
+      prompt += `- Active Reminders & Deadlines:\n`;
+      prompt += `${userContext.reminders.map((r: any) => {
+        const d = r.remindAt ? String(r.remindAt).slice(0, 10) : '';
+        return `  * \"${r.title}\" (Trigger: ${d})`;
+      }).join('\n')}\n`;
+    }
+
+    // Roadmaps
+    if (userContext.roadmaps && userContext.roadmaps.length > 0) {
+      prompt += `- Roadmaps:\n${userContext.roadmaps.map((r: any) => `  * \"${r.title}\" (Status: ${r.status})`).join('\n')}\n`;
+    }
+
+    // Learning Tracks
+    if (userContext.learning && userContext.learning.length > 0) {
+      prompt += `- Learning Tracks:\n${userContext.learning.map((l: any) => `  * \"${l.title}\" (Status: ${l.status})`).join('\n')}\n`;
     }
 
     // Habits
     if (userContext.habits && userContext.habits.length > 0) {
-      prompt += `- Habits:\n${userContext.habits.map((h: any) => `  * "${h.title}": streak ${h.streakCount || 0}`).join('\n')}\n`;
+      prompt += `- Habits:\n${userContext.habits.map((h: any) => `  * \"${h.title}\": streak ${h.streakCount || 0}`).join('\n')}\n`;
     }
   }
 

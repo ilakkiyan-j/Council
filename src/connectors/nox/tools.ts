@@ -215,6 +215,51 @@ export const noxTools: ToolDefinition[] = [
 
   // ---- Events ----
   {
+    name: 'nox_get_events',
+    description: 'Fetch all calendar events, hackathons, and scheduled sessions from Nox.',
+    parameters: {
+      type: 'object',
+      properties: {
+        startDate: { type: 'string', description: 'Optional start date filter (YYYY-MM-DD)' },
+        endDate: { type: 'string', description: 'Optional end date filter (YYYY-MM-DD)' },
+      },
+    },
+    execute: async (_args, authToken) => {
+      const events = await noxClient.getEvents(authToken).catch(() => []);
+      return {
+        count: Array.isArray(events) ? events.length : 0,
+        events: Array.isArray(events) ? events.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          date: e.date,
+          startTime: e.startTime,
+          endTime: e.endTime,
+          location: e.location,
+        })) : [],
+      };
+    },
+  },
+  {
+    name: 'nox_get_reminders',
+    description: 'Fetch all upcoming and pending reminders in Nox.',
+    parameters: {
+      type: 'object',
+      properties: {},
+    },
+    execute: async (_args, authToken) => {
+      const reminders = await noxClient.getReminders(authToken).catch(() => []);
+      return {
+        count: Array.isArray(reminders) ? reminders.length : 0,
+        reminders: Array.isArray(reminders) ? reminders.map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          remindAt: r.remindAt,
+          isCompleted: r.isCompleted,
+        })) : [],
+      };
+    },
+  },
+  {
     name: 'nox_schedule_event',
     description: 'Schedule a calendar event in Nox.',
     parameters: {

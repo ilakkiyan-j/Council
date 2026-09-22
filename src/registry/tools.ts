@@ -164,6 +164,40 @@ export const REGISTERED_TOOLS: RegisteredTool[] = [
   },
   // Nox Calendar Events
   {
+    id: 'nox_get_events',
+    applicationSlug: 'nox',
+    name: 'nox_get_events',
+    description: 'Fetch all calendar events, hackathons, and scheduled sessions from Nox.',
+    category: 'calendar',
+    isMutating: false,
+    requiredPermission: 'READ_ONLY',
+    parameters: {
+      type: 'object',
+      properties: {
+        startDate: { type: 'string', description: 'Optional start date filter (YYYY-MM-DD)' },
+        endDate: { type: 'string', description: 'Optional end date filter (YYYY-MM-DD)' },
+      },
+    },
+    execute: async (args, authToken) => {
+      const tool = noxTools.find((t) => t.name === 'nox_get_events');
+      return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
+    },
+  },
+  {
+    id: 'nox_get_reminders',
+    applicationSlug: 'nox',
+    name: 'nox_get_reminders',
+    description: 'Fetch all upcoming and pending reminders in Nox.',
+    category: 'calendar',
+    isMutating: false,
+    requiredPermission: 'READ_ONLY',
+    parameters: { type: 'object', properties: {} },
+    execute: async (args, authToken) => {
+      const tool = noxTools.find((t) => t.name === 'nox_get_reminders');
+      return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
+    },
+  },
+  {
     id: 'nox_schedule_event',
     applicationSlug: 'nox',
     name: 'nox_schedule_event',
