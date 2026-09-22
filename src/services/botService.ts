@@ -398,7 +398,7 @@ export class BotService {
               maxTokens: original.modelConfig.maxTokens,
             }
           : undefined,
-        integrations: original.integrations.map((i) => ({
+        integrations: original.integrations.map((i: { applicationId: string; permissions?: unknown }) => ({
           applicationId: i.applicationId,
           permissions: (i.permissions as Record<string, string>) || {},
         })),

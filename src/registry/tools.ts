@@ -1,6 +1,7 @@
 import { ToolDefinition } from '../connectors/nox/types.js';
 import { noxTools } from '../connectors/nox/tools.js';
 import { searchWeb } from '../services/webSearchService.js';
+import type { BotService } from '../services/botService.js';
 
 export interface RegisteredTool {
   id: string;
@@ -304,12 +305,19 @@ export const REGISTERED_TOOLS: RegisteredTool[] = [
   },
 ];
 
+export interface BotToolContext {
+  userId: string;
+  botId: string;
+  botService: BotService;
+}
+
 /**
  * Filter tools allowed for a bot based on its active integrations and permissions.
- * Universal tools like web_search are always provided to every bot.
+ * Universal tools like web_search and adapt_persona are provided to bots with context.
  */
 export function resolveToolsForBot(
-  integrations: Array<{ applicationId: string; application: { slug: string }; permissions: any }>
+  integrations: Array<{ applicationId: string; application: { slug: string }; permissions: any }>,
+  botContext?: BotToolContext
 ): ToolDefinition[] {
   const allowedTools: ToolDefinition[] = [];
 
@@ -324,7 +332,91 @@ export function resolveToolsForBot(
     });
   }
 
-  // 2. Application-specific tools (Nox, etc.)
+  // 2. Adaptive AI Character Tool (Self-Evolution & Instruction Updates)
+  if (botContext) {
+    allowedTools.push({
+      name: 'adapt_persona',
+      description:
+        'Dynamically update and permanently persist changes to your personality, behavior rules, communication style, role, or system prompt when requested by the user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          systemPrompt: {
+            type: 'string',
+            description: 'Updated or refined system instructions / system prompt reflecting what the user requested.',
+          },
+          role: {
+            type: 'string',
+            description: 'Updated or refined role title (e.g. "Executive Tech Lead", "Personal Assistant & Health Coach").',
+          },
+          communicationStyle: {
+            type: 'string',
+            description: 'New communication tone or style (e.g. "concise", "strictly professional", "direct", "playful").',
+          },
+          behaviorRules: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'List of behavior rules to adhere to permanently (e.g. ["Never use nicknames", "Keep answers under 2 paragraphs"]).',
+          },
+          personality: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Personality traits (e.g. ["Analytical", "Concise", "Pragmatic"]).',
+          },
+          traits: {
+            type: 'object',
+            description: 'Numeric slider traits between 0.0 and 1.0 (creativity, strictness, humor).',
+            properties: {
+              creativity: { type: 'number' },
+              strictness: { type: 'number' },
+              humor: { type: 'number' },
+            },
+          },
+        },
+      },
+      execute: async (args: any) => {
+        try {
+          const updatePayload: any = {};
+          if (args.role) updatePayload.role = args.role;
+          if (args.systemPrompt) {
+            updatePayload.instruction = { systemPrompt: args.systemPrompt };
+          }
+          if (
+            args.communicationStyle !== undefined ||
+            args.behaviorRules !== undefined ||
+            args.personality !== undefined ||
+            args.traits !== undefined
+          ) {
+            updatePayload.persona = {
+              communicationStyle: args.communicationStyle,
+              behaviorRules: args.behaviorRules,
+              personality: args.personality,
+              traits: args.traits,
+            };
+          }
+
+          const updated = await botContext.botService.updateBot(
+            botContext.userId,
+            botContext.botId,
+            updatePayload
+          );
+
+          return {
+            success: true,
+            message: `Successfully adapted ${updated.name}'s character and instructions in the database.`,
+            updatedFields: Object.keys(args),
+          };
+        } catch (err: any) {
+          return {
+            success: false,
+            error: err?.message || 'Failed to adapt character',
+          };
+        }
+      },
+    });
+  }
+
+  // 3. Application-specific tools (Nox, etc.)
   for (const integration of integrations || []) {
     const appSlug = integration.application?.slug;
     if (!appSlug) continue;

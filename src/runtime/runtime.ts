@@ -86,8 +86,12 @@ export class BotRuntime {
       memoryService: this.memoryService,
     });
 
-    // 6. Resolve permitted tools
-    const tools = resolveToolsForBot(bot.integrations as any);
+    // 6. Resolve permitted tools (including adapt_persona with bot context)
+    const tools = resolveToolsForBot(bot.integrations as any, {
+      userId,
+      botId: bot.id,
+      botService: this.botService,
+    });
 
     // 7. Route and execute through ModelRouter
     const router = ModelRouter.getInstance();
@@ -178,7 +182,11 @@ export class BotRuntime {
       memoryService: this.memoryService,
     });
 
-    const tools = resolveToolsForBot(bot.integrations as any);
+    const tools = resolveToolsForBot(bot.integrations as any, {
+      userId,
+      botId: bot.id,
+      botService: this.botService,
+    });
     const router = ModelRouter.getInstance();
 
     let fullReply = '';
