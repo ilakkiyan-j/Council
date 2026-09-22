@@ -36,4 +36,4 @@ COPY --from=builder /app/src/public ./src/public
 
 EXPOSE 4100
 
-CMD ["node", "dist/index.js"]
+CMD ["npm", "start"]
