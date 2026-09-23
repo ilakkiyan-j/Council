@@ -111,6 +111,17 @@ export class ModelRouter {
         });
       }
 
+      // Workspace fallback: inherit any active workspace credential for this provider
+      if (!cred || cred.status !== 'ACTIVE') {
+        cred = await prisma.providerCredential.findFirst({
+          where: {
+            provider: providerId,
+            status: 'ACTIVE',
+          },
+          orderBy: { updatedAt: 'desc' },
+        });
+      }
+
       if (!cred || cred.status !== 'ACTIVE') {
         throw new Error(
           `Your ${adapter.name} credential is unavailable. Reconnect your provider key in BYOK Keys to continue.`

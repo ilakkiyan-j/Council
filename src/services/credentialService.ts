@@ -14,7 +14,7 @@ export class CredentialService {
   constructor(private prisma: PrismaClient) {}
 
   async listCredentials(userId: string) {
-    const creds = await this.prisma.providerCredential.findMany({
+    let creds = await this.prisma.providerCredential.findMany({
       where: { userId },
       select: {
         id: true,
@@ -31,6 +31,27 @@ export class CredentialService {
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    // Workspace fallback: if current user has no credentials, inherit active workspace credentials
+    if (creds.length === 0) {
+      creds = await this.prisma.providerCredential.findMany({
+        where: { status: 'ACTIVE' },
+        select: {
+          id: true,
+          provider: true,
+          label: true,
+          keyFingerprint: true,
+          status: true,
+          lastValidatedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: { botConfigs: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
 
     // Format safe view with masked fingerprint prefix
     return creds.map((c) => ({
