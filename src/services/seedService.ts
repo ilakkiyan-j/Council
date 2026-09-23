@@ -171,8 +171,8 @@ export async function seedUserDefaultBots(prisma: PrismaClient, userId: string):
       },
       modelConfig: {
         create: {
-          provider: 'groq',
-          model: 'llama-3.3-70b-versatile',
+          provider: 'gemini',
+          model: 'gemini-2.5-flash',
           temperature: 0.6,
           maxTokens: 2048,
         },
@@ -214,8 +214,8 @@ export async function seedUserDefaultBots(prisma: PrismaClient, userId: string):
       },
       modelConfig: {
         create: {
-          provider: 'groq',
-          model: 'llama-3.3-70b-versatile',
+          provider: 'gemini',
+          model: 'gemini-2.5-flash',
           temperature: 0.7,
           maxTokens: 2048,
         },

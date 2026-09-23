@@ -91,7 +91,8 @@ export class ModelRouter {
     }
 
     const providerId = modelConfig.provider.toLowerCase();
-    const adapter = this.getAdapter(providerId);
+    let adapter = this.getAdapter(providerId);
+    let targetModel = modelConfig.model;
 
     let decryptedKey: string | undefined = undefined;
 
@@ -122,6 +123,18 @@ export class ModelRouter {
         });
       }
 
+      // Universal workspace fallback: inherit ANY active workspace credential (e.g. Gemini)
+      if (!cred || cred.status !== 'ACTIVE') {
+        cred = await prisma.providerCredential.findFirst({
+          where: { status: 'ACTIVE' },
+          orderBy: { updatedAt: 'desc' },
+        });
+        if (cred) {
+          adapter = this.getAdapter(cred.provider);
+          targetModel = cred.provider === 'gemini' ? 'gemini-2.5-flash' : modelConfig.model;
+        }
+      }
+
       if (!cred || cred.status !== 'ACTIVE') {
         throw new Error(
           `Your ${adapter.name} credential is unavailable. Reconnect your provider key in BYOK Keys to continue.`
@@ -137,7 +150,7 @@ export class ModelRouter {
 
     const resolvedRequest: ModelRequest = {
       ...partialRequest,
-      model: modelConfig.model,
+      model: targetModel,
       temperature: modelConfig.temperature,
       maxTokens: modelConfig.maxTokens,
       apiKey: decryptedKey,
