@@ -136,15 +136,30 @@ export class ModelRouter {
       }
 
       if (!cred || cred.status !== 'ACTIVE') {
-        throw new Error(
-          `Your ${adapter.name} credential is unavailable. Reconnect your provider key in BYOK Keys to continue.`
-        );
-      }
+        const envKey =
+          (providerId === 'gemini' && process.env.GEMINI_API_KEY) ||
+          (providerId === 'openai' && process.env.OPENAI_API_KEY) ||
+          (providerId === 'groq' && process.env.GROQ_API_KEY) ||
+          (providerId === 'anthropic' && process.env.ANTHROPIC_API_KEY) ||
+          process.env.GEMINI_API_KEY;
 
-      try {
-        decryptedKey = decryptCredential(cred.encryptedSecret, cred.iv, cred.authTag);
-      } catch (err: any) {
-        throw new Error(`Failed to decrypt ${adapter.name} credential: ${err.message}`);
+        if (envKey) {
+          decryptedKey = envKey;
+          if (providerId !== 'gemini' && !process.env[`${providerId.toUpperCase()}_API_KEY`] && process.env.GEMINI_API_KEY) {
+            adapter = this.getAdapter('gemini');
+            targetModel = 'gemini-2.5-flash';
+          }
+        } else {
+          throw new Error(
+            `Your ${adapter.name} credential is unavailable. Reconnect your provider key in BYOK Keys to continue.`
+          );
+        }
+      } else {
+        try {
+          decryptedKey = decryptCredential(cred.encryptedSecret, cred.iv, cred.authTag);
+        } catch (err: any) {
+          throw new Error(`Failed to decrypt ${adapter.name} credential: ${err.message}`);
+        }
       }
     }
 

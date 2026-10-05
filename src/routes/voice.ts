@@ -11,6 +11,7 @@ import { buildSpokenBotContext } from '../runtime/spokenPromptEngine.js';
 import { ModelRouter } from '../providers/router.js';
 import { resolveToolsForBot } from '../registry/tools.js';
 import { MessageTurn } from '../providers/types.js';
+import { seedUserDefaultBots } from '../services/seedService.js';
 
 export const voiceRouter = Router();
 
@@ -110,14 +111,31 @@ voiceRouter.post('/voice/call-turn', requireAuth, async (req: Request, res: Resp
       return res.status(400).json({ success: false, error: { message: 'Message text is required.' } });
     }
 
+    // Auto-seed default bots for user if needed
+    await seedUserDefaultBots(prisma, userId);
+
     const targetBotSlug = botId || persona || 'sofi';
     const bot = await botService.getBot(userId, targetBotSlug);
 
-    // 1. Resolve / create conversation
+    // 1. Resolve / create conversation safely
     let convId = conversationId;
     if (!convId) {
-      const conv = await conversationService.createConversation(userId, bot.id);
+      const conv = await conversationService.createConversation(userId, bot.id, `Voice Call with ${bot.name}`);
       convId = conv.id;
+    } else {
+      const existing = await prisma.conversation.findFirst({
+        where: { id: convId, userId },
+      });
+      if (!existing) {
+        await prisma.conversation.create({
+          data: {
+            id: convId,
+            userId,
+            botId: bot.id,
+            title: `Voice Call with ${bot.name}`,
+          },
+        });
+      }
     }
 
     // 2. Save user message
@@ -161,15 +179,21 @@ voiceRouter.post('/voice/call-turn', requireAuth, async (req: Request, res: Resp
     // 6. Clean and sanitize response text for spoken audio
     const sanitizedSpeech = sanitizeTextForSpeech(modelResponse.reply);
 
-    // 7. Synthesize Speech Audio with User's Voice Preference
-    const audioResult = await voiceService.synthesize({
-      text: sanitizedSpeech,
-      userId,
-    });
+    // 7. Synthesize Speech Audio with User's Voice Preference (with fallback)
+    let audioUrl = '';
+    try {
+      const audioResult = await voiceService.synthesize({
+        text: sanitizedSpeech,
+        userId,
+      });
+      audioUrl = audioResult.audioUrl;
+    } catch (ttsErr) {
+      console.warn('Voice call TTS synthesis warning (falling back to browser speech synthesis):', ttsErr);
+    }
 
     // 8. Save Assistant Message
     await conversationService.addMessage(convId, 'assistant', modelResponse.reply, {
-      metadata: { isSpokenCall: true, audioUrl: audioResult.audioUrl },
+      metadata: { isSpokenCall: true, audioUrl },
       latencyMs: modelResponse.latencyMs,
     });
 
@@ -182,7 +206,7 @@ voiceRouter.post('/voice/call-turn', requireAuth, async (req: Request, res: Resp
         userMessage: message,
         replyText: modelResponse.reply,
         spokenText: sanitizedSpeech,
-        audioUrl: audioResult.audioUrl,
+        audioUrl,
         conversationId: convId,
         latencyMs: modelResponse.latencyMs,
       },
