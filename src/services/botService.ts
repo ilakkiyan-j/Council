@@ -35,6 +35,9 @@ export interface CreateBotInput {
     applicationId: string;
     permissions?: Record<string, string>;
   }>;
+  telegramBotToken?: string | null;
+  telegramBotUsername?: string | null;
+  telegramWebhookUrl?: string | null;
 }
 
 export interface UpdateBotInput extends Partial<CreateBotInput> {
@@ -157,6 +160,9 @@ export class BotService {
         color: input.color || 'indigo',
         role: input.role || 'Custom Assistant',
         isDefault: input.isDefault || false,
+        telegramBotToken: input.telegramBotToken || null,
+        telegramBotUsername: input.telegramBotUsername || null,
+        telegramWebhookUrl: input.telegramWebhookUrl || null,
         persona: input.persona
           ? {
               create: {
@@ -238,6 +244,9 @@ export class BotService {
         role: input.role,
         status: input.status,
         isDefault: input.isDefault,
+        telegramBotToken: input.telegramBotToken !== undefined ? input.telegramBotToken : undefined,
+        telegramBotUsername: input.telegramBotUsername !== undefined ? input.telegramBotUsername : undefined,
+        telegramWebhookUrl: input.telegramWebhookUrl !== undefined ? input.telegramWebhookUrl : undefined,
       },
     });
 

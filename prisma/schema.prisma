@@ -21,10 +21,13 @@ model Bot {
   avatar      String?  @default("🤖")
   color       String?  @default("indigo")
   role        String   @default("Custom Assistant")
-  status      String   @default("ACTIVE") // ACTIVE, DRAFT, ARCHIVED
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status              String   @default("ACTIVE") // ACTIVE, DRAFT, ARCHIVED
+  isDefault           Boolean  @default(false)
+  telegramBotToken    String?  // Dedicated @BotFather token for this bot
+  telegramBotUsername String?  // e.g. "Sofi_Nox_Bot"
+  telegramWebhookUrl  String?  // Registered webhook URL
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   persona       BotPersona?
   instruction   BotInstruction?
