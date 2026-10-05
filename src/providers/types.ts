@@ -8,6 +8,12 @@ export interface MessageTurn {
   name?: string;
 }
 
+export interface FallbackConfigItem {
+  provider: string;
+  model?: string;
+  enabled?: boolean;
+}
+
 export interface ModelRequest {
   model: string;
   systemPrompt: string;

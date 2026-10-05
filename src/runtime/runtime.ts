@@ -87,7 +87,7 @@ export class BotRuntime {
     });
 
     // 6. Resolve permitted tools (including adapt_persona with bot context)
-    const tools = resolveToolsForBot(bot.integrations as any, {
+    const tools = resolveToolsForBot(bot, {
       userId,
       botId: bot.id,
       botService: this.botService,
@@ -182,7 +182,7 @@ export class BotRuntime {
       memoryService: this.memoryService,
     });
 
-    const tools = resolveToolsForBot(bot.integrations as any, {
+    const tools = resolveToolsForBot(bot, {
       userId,
       botId: bot.id,
       botService: this.botService,

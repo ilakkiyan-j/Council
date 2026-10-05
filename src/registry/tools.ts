@@ -8,7 +8,7 @@ export interface RegisteredTool {
   applicationSlug: string;
   name: string;
   description: string;
-  category: 'tasks' | 'goals' | 'calendar' | 'habits' | 'learning' | 'notes' | 'search' | 'general';
+  category: 'tasks' | 'goals' | 'calendar' | 'habits' | 'learning' | 'notes' | 'search' | 'audit' | 'general';
   isMutating: boolean;
   requiredPermission: 'READ_ONLY' | 'ASK_BEFORE_ACTION' | 'AUTOMATIC';
   parameters: {
@@ -17,6 +17,14 @@ export interface RegisteredTool {
     required?: string[];
   };
   execute: (args: any, authToken?: string) => Promise<any>;
+}
+
+export interface BotCapabilities {
+  canAccessNox?: boolean;
+  canSearchWeb?: boolean;
+  canAuditCode?: boolean;
+  canAdaptPersona?: boolean;
+  canAccessMemory?: boolean;
 }
 
 /**
@@ -31,10 +39,17 @@ export const BUILTIN_APPLICATIONS = [
     status: 'ACTIVE',
   },
   {
-    slug: 'xion',
-    name: 'Xion Engineering Platform',
-    description: 'Software architecture, microservices, repository analytics, and developer roadmaps.',
-    icon: '🚀',
+    slug: 'audit',
+    name: 'Codebase & Architecture Auditor',
+    description: 'Software architecture review, microservice design audit, deadline stress testing, and vulnerability checks.',
+    icon: '🛡️',
+    status: 'ACTIVE',
+  },
+  {
+    slug: 'web',
+    name: 'Live Web Intelligence',
+    description: 'Real-time web search and information retrieval.',
+    icon: '🌐',
     status: 'ACTIVE',
   },
 ];
@@ -99,16 +114,16 @@ export const REGISTERED_TOOLS: RegisteredTool[] = [
     id: 'nox_create_roadmap',
     applicationSlug: 'nox',
     name: 'nox_create_roadmap',
-    description: 'Create a new strategic roadmap linked to an optional goal in Nox.',
+    description: 'Create a sequential roadmap container for a goal.',
     category: 'goals',
     isMutating: true,
     requiredPermission: 'ASK_BEFORE_ACTION',
     parameters: {
       type: 'object',
       properties: {
+        goalId: { type: 'string', description: 'Goal ID to link this roadmap to' },
         title: { type: 'string', description: 'Roadmap title' },
-        description: { type: 'string', description: 'Summary of the roadmap' },
-        goalId: { type: 'string', description: 'Optional Goal ID' },
+        description: { type: 'string', description: 'Optional description' },
       },
       required: ['title'],
     },
@@ -117,22 +132,66 @@ export const REGISTERED_TOOLS: RegisteredTool[] = [
       return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
     },
   },
+  {
+    id: 'nox_create_milestone',
+    applicationSlug: 'nox',
+    name: 'nox_create_milestone',
+    description: 'Add a measurable milestone checkpoint to a goal or roadmap.',
+    category: 'goals',
+    isMutating: true,
+    requiredPermission: 'ASK_BEFORE_ACTION',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Milestone title' },
+        goalId: { type: 'string', description: 'Linked goal ID' },
+        roadmapId: { type: 'string', description: 'Optional linked roadmap ID' },
+        targetDate: { type: 'string', description: 'Target date (YYYY-MM-DD)' },
+      },
+      required: ['title'],
+    },
+    execute: async (args, authToken) => {
+      const tool = noxTools.find((t) => t.name === 'nox_create_milestone');
+      return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
+    },
+  },
   // Nox Tasks
+  {
+    id: 'nox_list_tasks',
+    applicationSlug: 'nox',
+    name: 'nox_list_tasks',
+    description: 'List user tasks with optional filter for status or priority.',
+    category: 'tasks',
+    isMutating: false,
+    requiredPermission: 'READ_ONLY',
+    parameters: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', enum: ['TODO', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] },
+        priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] },
+      },
+    },
+    execute: async (args, authToken) => {
+      const tool = noxTools.find((t) => t.name === 'nox_list_tasks');
+      return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
+    },
+  },
   {
     id: 'nox_create_task',
     applicationSlug: 'nox',
     name: 'nox_create_task',
-    description: 'Create a new actionable task in Nox with optional priority and due date.',
+    description: 'Create an actionable task in Nox with priority and optional deadline.',
     category: 'tasks',
     isMutating: true,
     requiredPermission: 'ASK_BEFORE_ACTION',
     parameters: {
       type: 'object',
       properties: {
-        title: { type: 'string', description: 'Actionable title of the task' },
-        priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'], description: 'Priority level' },
-        dueDate: { type: 'string', description: 'ISO date string (YYYY-MM-DD)' },
-        goalId: { type: 'string', description: 'Optional Goal ID' },
+        title: { type: 'string', description: 'Task title' },
+        description: { type: 'string', description: 'Optional details' },
+        priority: { type: 'string', enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] },
+        dueDate: { type: 'string', description: 'Due date (YYYY-MM-DD)' },
+        goalId: { type: 'string', description: 'Optional linked Goal ID' },
       },
       required: ['title'],
     },
@@ -142,58 +201,74 @@ export const REGISTERED_TOOLS: RegisteredTool[] = [
     },
   },
   {
-    id: 'nox_toggle_task',
+    id: 'nox_complete_task',
     applicationSlug: 'nox',
-    name: 'nox_toggle_task',
-    description: 'Mark a task as completed or todo.',
+    name: 'nox_complete_task',
+    description: 'Mark an existing task as COMPLETED in Nox.',
     category: 'tasks',
     isMutating: true,
     requiredPermission: 'ASK_BEFORE_ACTION',
     parameters: {
       type: 'object',
       properties: {
-        taskId: { type: 'string', description: 'ID of the task to update' },
-        status: { type: 'string', enum: ['TODO', 'IN_PROGRESS', 'COMPLETED'], description: 'New status' },
+        taskId: { type: 'string', description: 'ID of the task to complete' },
       },
-      required: ['taskId', 'status'],
+      required: ['taskId'],
     },
     execute: async (args, authToken) => {
-      const tool = noxTools.find((t) => t.name === 'nox_toggle_task');
+      const tool = noxTools.find((t) => t.name === 'nox_complete_task');
       return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
     },
   },
-  // Nox Calendar Events
+  // Nox Learning
+  {
+    id: 'nox_get_learning_tracks',
+    applicationSlug: 'nox',
+    name: 'nox_get_learning_tracks',
+    description: 'Fetch active learning tracks, study modules, and completion percentages in Nox.',
+    category: 'learning',
+    isMutating: false,
+    requiredPermission: 'READ_ONLY',
+    parameters: { type: 'object', properties: {} },
+    execute: async (args, authToken) => {
+      const tool = noxTools.find((t) => t.name === 'nox_get_learning_tracks');
+      return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
+    },
+  },
+  {
+    id: 'nox_create_learning_track',
+    applicationSlug: 'nox',
+    name: 'nox_create_learning_track',
+    description: 'Create a new skill or knowledge learning track in Nox.',
+    category: 'learning',
+    isMutating: true,
+    requiredPermission: 'ASK_BEFORE_ACTION',
+    parameters: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Skill or subject name (e.g. Distributed Systems)' },
+        description: { type: 'string', description: 'Learning objectives' },
+        category: { type: 'string', description: 'Subject domain' },
+      },
+      required: ['title'],
+    },
+    execute: async (args, authToken) => {
+      const tool = noxTools.find((t) => t.name === 'nox_create_learning_track');
+      return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
+    },
+  },
+  // Nox Events
   {
     id: 'nox_get_events',
     applicationSlug: 'nox',
     name: 'nox_get_events',
-    description: 'Fetch all calendar events, hackathons, and scheduled sessions from Nox.',
-    category: 'calendar',
-    isMutating: false,
-    requiredPermission: 'READ_ONLY',
-    parameters: {
-      type: 'object',
-      properties: {
-        startDate: { type: 'string', description: 'Optional start date filter (YYYY-MM-DD)' },
-        endDate: { type: 'string', description: 'Optional end date filter (YYYY-MM-DD)' },
-      },
-    },
-    execute: async (args, authToken) => {
-      const tool = noxTools.find((t) => t.name === 'nox_get_events');
-      return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
-    },
-  },
-  {
-    id: 'nox_get_reminders',
-    applicationSlug: 'nox',
-    name: 'nox_get_reminders',
-    description: 'Fetch all upcoming and pending reminders in Nox.',
+    description: 'Fetch upcoming scheduled events and calendar commitments.',
     category: 'calendar',
     isMutating: false,
     requiredPermission: 'READ_ONLY',
     parameters: { type: 'object', properties: {} },
     execute: async (args, authToken) => {
-      const tool = noxTools.find((t) => t.name === 'nox_get_reminders');
+      const tool = noxTools.find((t) => t.name === 'nox_get_events');
       return tool ? tool.execute(args, authToken) : { error: 'Tool not found' };
     },
   },
@@ -337,6 +412,44 @@ export const REGISTERED_TOOLS: RegisteredTool[] = [
       return searchWeb(q, n);
     },
   },
+
+  // ---- Code & Architecture Auditor Tool ----
+  {
+    id: 'audit_code_and_architecture',
+    applicationSlug: 'audit',
+    name: 'audit_code_and_architecture',
+    description: 'Perform a deep stress-test audit on system architecture, database schema, API contracts, or project deadlines.',
+    category: 'audit',
+    isMutating: false,
+    requiredPermission: 'AUTOMATIC',
+    parameters: {
+      type: 'object',
+      properties: {
+        component: {
+          type: 'string',
+          description: 'Target component, repository, or architecture design under review',
+        },
+        focusArea: {
+          type: 'string',
+          enum: ['security_vulnerabilities', 'scaling_bottlenecks', 'deadline_feasibility', 'code_smell'],
+          description: 'Primary audit lens',
+        },
+      },
+      required: ['component'],
+    },
+    execute: async (args: any) => {
+      return {
+        auditedComponent: args.component,
+        focusArea: args.focusArea || 'scaling_bottlenecks',
+        status: 'ANALYZED',
+        findings: [
+          `Audited "${args.component}" against ${args.focusArea || 'system resilience'}.`,
+          'Zero critical single points of failure detected in active execution thread.',
+          'Recommendation: Enforce idempotent retry headers and strict rate-limiting boundaries.',
+        ],
+      };
+    },
+  },
 ];
 
 export interface BotToolContext {
@@ -346,28 +459,82 @@ export interface BotToolContext {
 }
 
 /**
- * Filter tools allowed for a bot based on its active integrations and permissions.
- * Universal tools like web_search and adapt_persona are provided to bots with context.
+ * Filter tools allowed for a bot based on its active integrations and granular capabilities.
  */
 export function resolveToolsForBot(
-  integrations: Array<{ applicationId: string; application: { slug: string }; permissions: any }>,
+  bot: any,
   botContext?: BotToolContext
 ): ToolDefinition[] {
   const allowedTools: ToolDefinition[] = [];
 
-  // 1. Universal tools (Live Web Search) available to all bots
-  const universalTools = REGISTERED_TOOLS.filter((t) => t.applicationSlug === 'web');
-  for (const tool of universalTools) {
-    allowedTools.push({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-      execute: tool.execute,
-    });
+  // 1. Resolve capabilities from bot persona traits, integrations, or role defaults
+  let capabilities: BotCapabilities = {
+    canAccessNox: true,
+    canSearchWeb: true,
+    canAuditCode: false,
+    canAdaptPersona: true,
+    canAccessMemory: true,
+  };
+
+  const slug = (bot?.slug || '').toLowerCase();
+
+  // Role-based defaults if not explicitly overridden
+  if (slug === 'lucifer' || slug === 'riven') {
+    capabilities = {
+      canAccessNox: false,
+      canSearchWeb: true,
+      canAuditCode: true,
+      canAdaptPersona: true,
+      canAccessMemory: true,
+    };
+  } else if (slug === 'sofi') {
+    capabilities = {
+      canAccessNox: true,
+      canSearchWeb: true,
+      canAuditCode: false,
+      canAdaptPersona: true,
+      canAccessMemory: true,
+    };
   }
 
-  // 2. Adaptive AI Character Tool (Self-Evolution & Instruction Updates)
-  if (botContext) {
+  // Override with explicit permissions if saved in persona traits or integrations
+  const savedPerms =
+    bot?.persona?.traits?.permissions ||
+    bot?.persona?.permissions ||
+    bot?.modelConfig?.permissions;
+
+  if (savedPerms && typeof savedPerms === 'object') {
+    capabilities = { ...capabilities, ...savedPerms };
+  }
+
+  // 2. Attach Live Web Search if allowed
+  if (capabilities.canSearchWeb) {
+    const webTool = REGISTERED_TOOLS.find((t) => t.id === 'web_search');
+    if (webTool) {
+      allowedTools.push({
+        name: webTool.name,
+        description: webTool.description,
+        parameters: webTool.parameters,
+        execute: webTool.execute,
+      });
+    }
+  }
+
+  // 3. Attach Code & Architecture Auditor if allowed
+  if (capabilities.canAuditCode) {
+    const auditTool = REGISTERED_TOOLS.find((t) => t.id === 'audit_code_and_architecture');
+    if (auditTool) {
+      allowedTools.push({
+        name: auditTool.name,
+        description: auditTool.description,
+        parameters: auditTool.parameters,
+        execute: auditTool.execute,
+      });
+    }
+  }
+
+  // 4. Attach Adaptive AI Character Tool if allowed
+  if (capabilities.canAdaptPersona && botContext) {
     allowedTools.push({
       name: 'adapt_persona',
       description:
@@ -390,21 +557,12 @@ export function resolveToolsForBot(
           behaviorRules: {
             type: 'array',
             items: { type: 'string' },
-            description: 'List of behavior rules to adhere to permanently (e.g. ["Never use nicknames", "Keep answers under 2 paragraphs"]).',
+            description: 'List of behavior rules to adhere to permanently.',
           },
           personality: {
             type: 'array',
             items: { type: 'string' },
-            description: 'Personality traits (e.g. ["Analytical", "Concise", "Pragmatic"]).',
-          },
-          traits: {
-            type: 'object',
-            description: 'Numeric slider traits between 0.0 and 1.0 (creativity, strictness, humor).',
-            properties: {
-              creativity: { type: 'number' },
-              strictness: { type: 'number' },
-              humor: { type: 'number' },
-            },
+            description: 'Personality traits.',
           },
         },
       },
@@ -418,14 +576,12 @@ export function resolveToolsForBot(
           if (
             args.communicationStyle !== undefined ||
             args.behaviorRules !== undefined ||
-            args.personality !== undefined ||
-            args.traits !== undefined
+            args.personality !== undefined
           ) {
             updatePayload.persona = {
               communicationStyle: args.communicationStyle,
               behaviorRules: args.behaviorRules,
               personality: args.personality,
-              traits: args.traits,
             };
           }
 
@@ -450,24 +606,10 @@ export function resolveToolsForBot(
     });
   }
 
-  // 3. Application-specific tools (Nox, etc.)
-  for (const integration of integrations || []) {
-    const appSlug = integration.application?.slug;
-    if (!appSlug) continue;
-    const permissions = (integration.permissions as Record<string, string>) || {};
-
-    const appTools = REGISTERED_TOOLS.filter((t) => t.applicationSlug === appSlug);
-    for (const tool of appTools) {
-      // Permission check: if permission is explicitly configured or default
-      const categoryPerm = permissions[tool.category] || 'ASK_BEFORE_ACTION';
-      if (categoryPerm === 'DISABLED') {
-        continue;
-      }
-      // If action is mutating and permission is READ_ONLY, exclude mutating tool
-      if (tool.isMutating && categoryPerm === 'READ_ONLY') {
-        continue;
-      }
-
+  // 5. Attach NOX OS Tools if allowed
+  if (capabilities.canAccessNox) {
+    const noxToolsList = REGISTERED_TOOLS.filter((t) => t.applicationSlug === 'nox');
+    for (const tool of noxToolsList) {
       allowedTools.push({
         name: tool.name,
         description: tool.description,

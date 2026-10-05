@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { ModelProvider, ModelRequest, ModelResponse, ModelChunk } from './types.js';
+import { ModelProvider, ModelRequest, ModelResponse, ModelChunk, FallbackConfigItem } from './types.js';
 import { GeminiAdapter } from './adapters/gemini.js';
 import { GroqAdapter } from './adapters/groq.js';
 import { OpenAIAdapter } from './adapters/openai.js';
@@ -45,8 +45,8 @@ export class ModelRouter {
   }
 
   /**
-   * Resolves the authenticated user's credential for a bot, decrypts it in-memory,
-   * and executes the model request without any plaintext leakage or global fallback.
+   * Executes model generation for a bot with multi-provider fallback failover.
+   * If the primary provider fails (rate limit, downtime), it transparently fails over to the next configured fallback.
    */
   public async executeForBot(
     prisma: PrismaClient,
@@ -54,12 +54,44 @@ export class ModelRouter {
     botId: string,
     partialRequest: Omit<ModelRequest, 'apiKey' | 'model' | 'customEndpoint'>
   ): Promise<ModelResponse> {
-    const { adapter, resolvedRequest } = await this.prepareRequest(prisma, userId, botId, partialRequest);
-    return adapter.generate(resolvedRequest);
+    const candidates = await this.resolveProviderCandidates(prisma, userId, botId);
+    const errors: Array<{ provider: string; error: string }> = [];
+
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      const isFallback = i > 0;
+
+      try {
+        const { adapter, resolvedRequest } = await this.prepareRequestForCandidate(
+          prisma,
+          userId,
+          botId,
+          candidate,
+          partialRequest
+        );
+
+        const response = await adapter.generate(resolvedRequest);
+        return {
+          ...response,
+          modelUsed: isFallback
+            ? `${resolvedRequest.model} (Failover #${i} via ${candidate.provider})`
+            : response.modelUsed,
+        };
+      } catch (err: any) {
+        console.warn(`[ModelRouter Failover] Provider "${candidate.provider}" failed for bot "${botId}":`, err.message);
+        errors.push({ provider: candidate.provider, error: err.message });
+      }
+    }
+
+    throw new Error(
+      `All AI providers in fallback pipeline failed. Attempted:\n${errors
+        .map((e) => `• ${e.provider.toUpperCase()}: ${e.error}`)
+        .join('\n')}`
+    );
   }
 
   /**
-   * Resolves credential and streams response for a bot.
+   * Resolves credential and streams response for a bot with multi-provider fallback.
    */
   public async *streamForBot(
     prisma: PrismaClient,
@@ -67,18 +99,93 @@ export class ModelRouter {
     botId: string,
     partialRequest: Omit<ModelRequest, 'apiKey' | 'model' | 'customEndpoint'>
   ): AsyncIterable<ModelChunk> {
-    const { adapter, resolvedRequest } = await this.prepareRequest(prisma, userId, botId, partialRequest);
-    yield* adapter.stream(resolvedRequest);
+    const candidates = await this.resolveProviderCandidates(prisma, userId, botId);
+    let success = false;
+
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      try {
+        const { adapter, resolvedRequest } = await this.prepareRequestForCandidate(
+          prisma,
+          userId,
+          botId,
+          candidate,
+          partialRequest
+        );
+
+        yield* adapter.stream(resolvedRequest);
+        success = true;
+        break;
+      } catch (err: any) {
+        console.warn(`[ModelRouter Stream Failover] Provider "${candidate.provider}" failed:`, err.message);
+      }
+    }
+
+    if (!success) {
+      yield {
+        type: 'error',
+        error: 'All AI model providers in fallback pipeline failed to stream.',
+      };
+    }
   }
 
   /**
-   * Internal helper to authorize credential ownership, decrypt server-side immediately before call,
-   * and build the final executable ModelRequest.
+   * Resolves the ordered list of provider candidates from bot configuration & fallback pipeline
    */
-  private async prepareRequest(
+  private async resolveProviderCandidates(
+    prisma: PrismaClient,
+    userId: string,
+    botId: string
+  ): Promise<Array<{ provider: string; model?: string }>> {
+    const modelConfig = await prisma.modelConfiguration.findUnique({
+      where: { botId },
+    });
+
+    const primaryProvider = modelConfig?.provider?.toLowerCase() || 'gemini';
+    const primaryModel = modelConfig?.model || (primaryProvider === 'gemini' ? 'gemini-2.5-flash' : undefined);
+
+    const candidates: Array<{ provider: string; model?: string }> = [
+      { provider: primaryProvider, model: primaryModel },
+    ];
+
+    // Extract custom fallback pipeline if configured in customEndpoint or DB
+    if (modelConfig?.customEndpoint) {
+      try {
+        const parsed = JSON.parse(modelConfig.customEndpoint);
+        if (Array.isArray(parsed?.fallbackPipeline)) {
+          for (const item of parsed.fallbackPipeline) {
+            if (item?.provider && item.enabled !== false && item.provider.toLowerCase() !== primaryProvider) {
+              candidates.push({
+                provider: item.provider.toLowerCase(),
+                model: item.model || undefined,
+              });
+            }
+          }
+        }
+      } catch {
+        // Not a JSON payload, standard custom endpoint
+      }
+    }
+
+    // Default fallback cascade if no custom pipeline specified
+    const defaultCascade = ['gemini', 'groq', 'openai', 'ollama'];
+    for (const p of defaultCascade) {
+      if (!candidates.some((c) => c.provider === p)) {
+        candidates.push({ provider: p });
+      }
+    }
+
+    return candidates;
+  }
+
+  /**
+   * Resolves decrypted credentials for a specific provider candidate
+   */
+  private async prepareRequestForCandidate(
     prisma: PrismaClient,
     userId: string,
     botId: string,
+    candidate: { provider: string; model?: string },
     partialRequest: Omit<ModelRequest, 'apiKey' | 'model' | 'customEndpoint'>
   ): Promise<{ adapter: ModelProvider; resolvedRequest: ModelRequest }> {
     const modelConfig = await prisma.modelConfiguration.findUnique({
@@ -86,21 +193,16 @@ export class ModelRouter {
       include: { credential: true },
     });
 
-    if (!modelConfig) {
-      throw new Error(`Model configuration not found for bot "${botId}".`);
-    }
-
-    const providerId = modelConfig.provider.toLowerCase();
-    let adapter = this.getAdapter(providerId);
-    let targetModel = modelConfig.model;
+    const providerId = candidate.provider.toLowerCase();
+    const adapter = this.getAdapter(providerId);
+    let targetModel = candidate.model || modelConfig?.model || (providerId === 'gemini' ? 'gemini-2.5-flash' : 'default');
 
     let decryptedKey: string | undefined = undefined;
 
     if (!adapter.isLocal) {
-      let cred = modelConfig.credential;
+      let cred = modelConfig?.provider === providerId ? modelConfig.credential : null;
 
-      // Automatic 1-to-many key inheritance: if bot doesn't have an active bound key,
-      // resolve the user's active key for this provider (e.g. Gemini, Groq, OpenAI)
+      // 1. User active key for this specific provider
       if (!cred || cred.userId !== userId || cred.status !== 'ACTIVE') {
         cred = await prisma.providerCredential.findFirst({
           where: {
@@ -112,7 +214,7 @@ export class ModelRouter {
         });
       }
 
-      // Workspace fallback: inherit any active workspace credential for this provider
+      // 2. Global workspace key for this specific provider
       if (!cred || cred.status !== 'ACTIVE') {
         cred = await prisma.providerCredential.findFirst({
           where: {
@@ -123,53 +225,30 @@ export class ModelRouter {
         });
       }
 
-      // Universal workspace fallback: inherit ANY active workspace credential (e.g. Gemini)
-      if (!cred || cred.status !== 'ACTIVE') {
-        cred = await prisma.providerCredential.findFirst({
-          where: { status: 'ACTIVE' },
-          orderBy: { updatedAt: 'desc' },
-        });
-        if (cred) {
-          adapter = this.getAdapter(cred.provider);
-          targetModel = cred.provider === 'gemini' ? 'gemini-2.5-flash' : modelConfig.model;
-        }
-      }
-
+      // 3. Fallback to process.env keys
       if (!cred || cred.status !== 'ACTIVE') {
         const envKey =
           (providerId === 'gemini' && process.env.GEMINI_API_KEY) ||
           (providerId === 'openai' && process.env.OPENAI_API_KEY) ||
           (providerId === 'groq' && process.env.GROQ_API_KEY) ||
-          (providerId === 'anthropic' && process.env.ANTHROPIC_API_KEY) ||
-          process.env.GEMINI_API_KEY;
+          (providerId === 'anthropic' && process.env.ANTHROPIC_API_KEY);
 
         if (envKey) {
           decryptedKey = envKey;
-          if (providerId !== 'gemini' && !process.env[`${providerId.toUpperCase()}_API_KEY`] && process.env.GEMINI_API_KEY) {
-            adapter = this.getAdapter('gemini');
-            targetModel = 'gemini-2.5-flash';
-          }
         } else {
-          throw new Error(
-            `Your ${adapter.name} credential is unavailable. Reconnect your provider key in BYOK Keys to continue.`
-          );
+          throw new Error(`No active API key configured for provider "${providerId.toUpperCase()}".`);
         }
       } else {
-        try {
-          decryptedKey = decryptCredential(cred.encryptedSecret, cred.iv, cred.authTag);
-        } catch (err: any) {
-          throw new Error(`Failed to decrypt ${adapter.name} credential: ${err.message}`);
-        }
+        decryptedKey = decryptCredential(cred.encryptedSecret, cred.iv, cred.authTag);
       }
     }
 
     const resolvedRequest: ModelRequest = {
       ...partialRequest,
       model: targetModel,
-      temperature: modelConfig.temperature,
-      maxTokens: modelConfig.maxTokens,
+      temperature: modelConfig?.temperature ?? 0.7,
+      maxTokens: modelConfig?.maxTokens ?? 4096,
       apiKey: decryptedKey,
-      customEndpoint: modelConfig.customEndpoint || undefined,
     };
 
     return { adapter, resolvedRequest };
