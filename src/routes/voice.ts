@@ -119,6 +119,7 @@ voiceRouter.post('/voice/test', requireAuth, async (req: Request, res: Response)
  */
 voiceRouter.post('/voice/transcribe', requireAuth, async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.id;
     const { audioBase64, mimeType } = req.body;
     if (!audioBase64 || typeof audioBase64 !== 'string') {
       return res.status(400).json({ success: false, error: { message: 'audioBase64 string is required.' } });
@@ -127,6 +128,7 @@ voiceRouter.post('/voice/transcribe', requireAuth, async (req: Request, res: Res
     const transcript = await transcriptionService.transcribe({
       audioBase64,
       mimeType: mimeType || 'audio/ogg',
+      userId,
     });
 
     return res.status(200).json({
@@ -160,6 +162,7 @@ voiceRouter.post('/voice/call-turn', requireAuth, async (req: Request, res: Resp
         const transcribed = await transcriptionService.transcribe({
           audioBase64,
           mimeType: mimeType || 'audio/ogg',
+          userId,
         });
         if (transcribed && transcribed.trim().length > 0) {
           message = transcribed.trim();

@@ -1,9 +1,12 @@
 import 'dotenv/config';
+import { prisma } from '../db/client.js';
+import { decryptCredential } from '../security/encryption.js';
 
 export interface TranscribeOptions {
   audioBase64: string;
   mimeType?: string;
   apiKey?: string;
+  userId?: string;
 }
 
 /**
@@ -12,17 +15,46 @@ export interface TranscribeOptions {
  */
 export class TranscriptionService {
   /**
+   * Helper to resolve active decrypted credential for a provider
+   */
+  private async resolveKey(provider: string, userId?: string): Promise<string | undefined> {
+    try {
+      if (userId) {
+        const userCred = await prisma.providerCredential.findFirst({
+          where: { userId, provider, status: 'ACTIVE' },
+          orderBy: { updatedAt: 'desc' },
+        });
+        if (userCred) {
+          return decryptCredential(userCred.encryptedSecret, userCred.iv, userCred.authTag);
+        }
+      }
+
+      // Workspace fallback
+      const cred = await prisma.providerCredential.findFirst({
+        where: { provider, status: 'ACTIVE' },
+        orderBy: { updatedAt: 'desc' },
+      });
+      if (cred) {
+        return decryptCredential(cred.encryptedSecret, cred.iv, cred.authTag);
+      }
+    } catch (err: any) {
+      console.warn(`[TranscriptionService] Failed to resolve DB key for ${provider}:`, err?.message);
+    }
+    return undefined;
+  }
+
+  /**
    * Transcribe raw audio base64 into text
    */
   public async transcribe(options: TranscribeOptions): Promise<string> {
-    const { audioBase64, mimeType = 'audio/ogg', apiKey } = options;
+    const { audioBase64, mimeType = 'audio/ogg', apiKey, userId } = options;
 
     if (!audioBase64 || audioBase64.trim().length === 0) {
       return '';
     }
 
     // 1. Try Gemini Multimodal Audio (Primary Engine - Sub-second, multilingual, zero-dependency)
-    const geminiKey = apiKey || process.env.GEMINI_API_KEY;
+    const geminiKey = apiKey || (await this.resolveKey('gemini', userId)) || process.env.GEMINI_API_KEY;
     if (geminiKey) {
       try {
         const transcript = await this.transcribeWithGemini(audioBase64, mimeType, geminiKey);
@@ -35,7 +67,7 @@ export class TranscriptionService {
     }
 
     // 2. Try Groq Whisper (Fallback)
-    const groqKey = process.env.GROQ_API_KEY;
+    const groqKey = (await this.resolveKey('groq', userId)) || process.env.GROQ_API_KEY;
     if (groqKey) {
       try {
         const transcript = await this.transcribeWithWhisper(
@@ -54,7 +86,7 @@ export class TranscriptionService {
     }
 
     // 3. Try OpenAI Whisper (Fallback)
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const openaiKey = (await this.resolveKey('openai', userId)) || process.env.OPENAI_API_KEY;
     if (openaiKey) {
       try {
         const transcript = await this.transcribeWithWhisper(
@@ -79,7 +111,13 @@ export class TranscriptionService {
    * Transcribe via Gemini multimodal audio
    */
   private async transcribeWithGemini(audioBase64: string, mimeType: string, apiKey: string): Promise<string> {
-    const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+    const models = [
+      'gemini-3.5-transcribe',
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-latest',
+      'gemini-2.5-flash',
+    ];
 
     let normalizedMime = mimeType;
     if (normalizedMime.includes('oga') || normalizedMime.includes('opus')) {
