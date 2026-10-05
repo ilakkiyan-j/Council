@@ -12,6 +12,7 @@ import { ModelRouter } from '../providers/router.js';
 import { resolveToolsForBot } from '../registry/tools.js';
 import { MessageTurn } from '../providers/types.js';
 import { seedUserDefaultBots } from '../services/seedService.js';
+import { transcriptionService } from '../services/transcriptionService.js';
 
 export const voiceRouter = Router();
 
@@ -113,18 +114,63 @@ voiceRouter.post('/voice/test', requireAuth, async (req: Request, res: Response)
 });
 
 /**
+ * POST /api/v1/voice/transcribe
+ * High-accuracy Multimodal Audio Transcription Endpoint
+ */
+voiceRouter.post('/voice/transcribe', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { audioBase64, mimeType } = req.body;
+    if (!audioBase64 || typeof audioBase64 !== 'string') {
+      return res.status(400).json({ success: false, error: { message: 'audioBase64 string is required.' } });
+    }
+
+    const transcript = await transcriptionService.transcribe({
+      audioBase64,
+      mimeType: mimeType || 'audio/ogg',
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: { transcript },
+    });
+  } catch (err: any) {
+    console.error('Transcription error:', err);
+    return res.status(500).json({
+      success: false,
+      error: { message: err?.message || 'Failed to transcribe audio.' },
+    });
+  }
+});
+
+/**
  * POST /api/v1/voice/call-turn
  * Real-Time Voice Calling Turn Endpoint:
- * Executes bot reasoning with natural spoken persona directives,
+ * Accepts message text OR audioBase64, transcribes if needed,
+ * executes bot reasoning with natural spoken persona directives,
  * sanitizes speech, synthesizes speech audio, and returns both audio and text.
  */
 voiceRouter.post('/voice/call-turn', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { botId, persona, message, conversationId, userContext } = req.body;
+    let { botId, persona, message, audioBase64, mimeType, conversationId, userContext } = req.body;
+
+    // If audio is provided without clean text, transcribe it first!
+    if (audioBase64 && typeof audioBase64 === 'string' && (!message || message === 'Voice Message' || message.startsWith('[Voice Note'))) {
+      try {
+        const transcribed = await transcriptionService.transcribe({
+          audioBase64,
+          mimeType: mimeType || 'audio/ogg',
+        });
+        if (transcribed && transcribed.trim().length > 0) {
+          message = transcribed.trim();
+        }
+      } catch (sttErr: any) {
+        console.warn('Inline transcription failed during call-turn:', sttErr?.message);
+      }
+    }
 
     if (!message || typeof message !== 'string') {
-      return res.status(400).json({ success: false, error: { message: 'Message text is required.' } });
+      message = 'Hello!';
     }
 
     // Auto-seed default bots for user if needed
