@@ -239,3 +239,23 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
 }
+
+// -----------------------------------------------------------------------------
+// Voice & Speech Configuration (Multi-Tenant & Isolated)
+// -----------------------------------------------------------------------------
+
+model UserVoicePreference {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  voiceModel         String   @default("en-US-AvaMultilingualNeural")
+  pitch              String   @default("+0Hz")
+  rate               String   @default("+0%")
+  isCloneEnabled     Boolean  @default(false)
+  referenceAudioPath String?
+  isExclusive        Boolean  @default(false)
+  allowedUserIds     Json?    @default("[]") // Array of authorized user IDs
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+}

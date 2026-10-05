@@ -11,6 +11,7 @@ import { chatRouter } from './routes/chat.js';
 import { applicationsRouter } from './routes/applications.js';
 import { memoryRouter } from './routes/memory.js';
 import { deliberateRouter } from './routes/deliberate.js';
+import { voiceRouter } from './routes/voice.js';
 import { authenticateUser } from './middleware/auth.js';
 
 export function createApp() {
@@ -26,6 +27,12 @@ export function createApp() {
 
   if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
+  }
+
+  // Static audio delivery for generated voice clips
+  const voiceOutputDir = path.resolve(process.cwd(), 'voice', 'output');
+  if (fs.existsSync(voiceOutputDir)) {
+    app.use('/audio', express.static(voiceOutputDir));
   }
 
   // Common HTML sender with framing support for embedding in Nox/Xion
@@ -70,6 +77,7 @@ export function createApp() {
   app.use('/api/v1', applicationsRouter);
   app.use('/api/v1', memoryRouter);
   app.use('/api/v1', deliberateRouter);
+  app.use('/api/v1', voiceRouter);
 
   return app;
 }

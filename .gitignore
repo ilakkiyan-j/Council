@@ -8,4 +8,15 @@ dist/
 data/
 *.pem
 *.key
+voice/output/
+voice/temp/
+voice/clips/
+voice/models/
+voice/rvc_models/
+__pycache__/
+*.pyc
+*.pt
+*.pth
+*.onnx
+*.ckpt
 
