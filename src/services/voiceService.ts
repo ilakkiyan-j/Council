@@ -224,9 +224,10 @@ export class VoiceService {
     const filename = options.outputFilename || `speech_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp3`;
     const outputPath = path.resolve(this.outputDir, filename);
 
-    // 4. Run Python Synthesizer Subprocess
+    // 4. Run Python Synthesizer Subprocess safely
     await new Promise<void>((resolve, reject) => {
-      const proc = spawn('python', [
+      const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+      const proc = spawn(pythonCmd, [
         this.voiceScriptPath,
         '--text', cleanSpokenText,
         '--voice', voiceModel!,
@@ -236,7 +237,12 @@ export class VoiceService {
       ]);
 
       let stderr = '';
-      proc.stderr.on('data', (d) => (stderr += d.toString()));
+      proc.stderr?.on('data', (d) => (stderr += d.toString()));
+
+      proc.on('error', (err) => {
+        console.warn(`[TTS Subprocess Error]: ${err.message}`);
+        reject(err);
+      });
 
       proc.on('close', (code) => {
         if (code === 0 && fs.existsSync(outputPath)) {
