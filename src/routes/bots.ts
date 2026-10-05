@@ -7,6 +7,23 @@ import { seedUserDefaultBots } from '../services/seedService.js';
 export const botsRouter = Router();
 const botService = new BotService(prisma);
 
+function sanitizeBot(b: any) {
+  if (!b) return b;
+  const clone = { ...b };
+  if (clone.telegramBotToken) {
+    clone.hasTelegramToken = true;
+    clone.telegramBotTokenMasked =
+      clone.telegramBotToken.length > 8
+        ? `••••••••${clone.telegramBotToken.slice(-4)}`
+        : '••••••••';
+    clone.telegramBotToken = clone.telegramBotTokenMasked;
+  } else {
+    clone.hasTelegramToken = false;
+    clone.telegramBotTokenMasked = null;
+  }
+  return clone;
+}
+
 /**
  * GET /api/v1/bots
  * List all custom Bots belonging to the authenticated user.
@@ -19,7 +36,8 @@ botsRouter.get('/bots', requireAuth, async (req: Request, res: Response) => {
     await seedUserDefaultBots(prisma, userId);
 
     const bots = await botService.listBots(userId);
-    return res.status(200).json({ success: true, data: bots });
+    const sanitized = bots.map((b) => sanitizeBot(b));
+    return res.status(200).json({ success: true, data: sanitized });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: { message: err?.message || 'Failed to list bots' } });
   }
@@ -32,7 +50,7 @@ botsRouter.get('/bots', requireAuth, async (req: Request, res: Response) => {
 botsRouter.post('/bots', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    const { name, slug, description, avatar, color, role, isDefault, persona, instruction, modelConfig, integrations } = req.body;
+    const { name, slug, description, avatar, color, role, isDefault, persona, instruction, modelConfig, integrations, telegramBotToken, telegramBotUsername, telegramWebhookUrl } = req.body;
 
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ success: false, error: { message: 'Bot name is required.' } });
@@ -52,11 +70,14 @@ botsRouter.post('/bots', requireAuth, async (req: Request, res: Response) => {
         instruction,
         modelConfig,
         integrations,
+        telegramBotToken,
+        telegramBotUsername,
+        telegramWebhookUrl,
       },
       req.ip
     );
 
-    return res.status(201).json({ success: true, data: bot });
+    return res.status(201).json({ success: true, data: sanitizeBot(bot) });
   } catch (err: any) {
     return res.status(400).json({ success: false, error: { message: err?.message || 'Failed to create bot' } });
   }
@@ -71,11 +92,27 @@ botsRouter.get('/bots/:id', requireAuth, async (req: Request, res: Response) => 
     const userId = req.user!.id;
     const botId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const bot = await botService.getBot(userId, botId);
+    return res.status(200).json({ success: true, data: sanitizeBot(bot) });
+  } catch (err: any) {
+    return res.status(404).json({ success: false, error: { message: err?.message || 'Bot not found' } });
+  }
+});
+
+/**
+ * GET /api/v1/bots/slug/:slug
+ * Retrieve bot configuration including secret credentials for internal webhook routing
+ */
+botsRouter.get('/bots/slug/:slug', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
+    const bot = await botService.getBot(userId, slug);
     return res.status(200).json({ success: true, data: bot });
   } catch (err: any) {
     return res.status(404).json({ success: false, error: { message: err?.message || 'Bot not found' } });
   }
 });
+
 
 /**
  * PATCH /api/v1/bots/:id
