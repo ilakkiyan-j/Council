@@ -27,14 +27,10 @@ function sanitizeBot(b: any) {
 /**
  * GET /api/v1/bots
  * List all custom Bots belonging to the authenticated user.
- * Automatically seeds default user bots on first load if the user has none.
  */
 botsRouter.get('/bots', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
-    // Auto-seed on first visit if user has no bots
-    await seedUserDefaultBots(prisma, userId);
-
     const bots = await botService.listBots(userId);
     const sanitized = bots.map((b) => sanitizeBot(b));
     return res.status(200).json({ success: true, data: sanitized });
