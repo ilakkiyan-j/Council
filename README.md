@@ -108,6 +108,9 @@ DATABASE_URL="postgresql://user:password@host/neondb?sslmode=require&schema=coun
 JWT_SECRET="your_jwt_secret_matching_nox"
 ENCRYPTION_KEY="32_byte_hex_or_secure_secret_for_aes_256_gcm"
 
+# Optional: exact user ID authorized to use the exclusive voice clone
+OWNER_USER_ID=""
+
 # Connected Applications
 NOX_API_URL="http://localhost:4000"
 XION_API_URL="http://localhost:5000"
@@ -180,6 +183,8 @@ All protected endpoints accept `Authorization: Bearer <jwt>` (matching Nox SSO) 
 3. **No Implicit Fallback**: Bots never fall back to server environment variables if a user credential is missing.
 4. **Prompt Injection Defense**: Retrieved memories and external application data are treated as untrusted boundaries.
 5. **Rate Limiting**: Credential operations and chat generation are protected against abuse.
+
+Exclusive voice access is disabled unless `OWNER_USER_ID` is set to the exact authorized user ID.
 
 ---
 

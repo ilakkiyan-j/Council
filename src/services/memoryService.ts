@@ -28,25 +28,6 @@ export class MemoryService {
       orderBy: { learnedAt: 'desc' },
     });
 
-    if (list.length === 0 && userId !== 'cmttwn1zg0000h4iajwvjrlf0') {
-      return this.prisma.memory.findMany({
-        where: {
-          userId: 'cmttwn1zg0000h4iajwvjrlf0',
-          ...(botId !== undefined
-            ? {
-                OR: [{ botId: null }, { botId }],
-              }
-            : {}),
-        },
-        include: {
-          bot: {
-            select: { id: true, name: true, avatar: true, color: true },
-          },
-        },
-        orderBy: { learnedAt: 'desc' },
-      });
-    }
-
     return list;
   }
 

@@ -18,8 +18,10 @@ declare global {
   }
 }
 
-function getJwtSecret(): string {
-  return process.env.JWT_SECRET || 'council-jwt-secret-dev';
+function getJwtSecret(): string | null {
+  const configuredSecret = process.env.JWT_SECRET?.trim();
+  if (configuredSecret) return configuredSecret;
+  return process.env.NODE_ENV === 'production' ? null : 'council-jwt-secret-dev';
 }
 
 export function extractBearerToken(req: Request): string | null {
@@ -41,79 +43,47 @@ export function extractBearerToken(req: Request): string | null {
  */
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
   const token = extractBearerToken(req);
-  const requestedUserId = (req.headers['x-user-id'] as string) || (req.query.userId as string);
+  const headerUserId = req.headers['x-user-id'];
+  const requestedUserId = typeof headerUserId === 'string' ? headerUserId.trim() : '';
 
   if (token) {
-    const candidateSecrets = Array.from(
-      new Set([
-        getJwtSecret(),
-        process.env.JWT_SECRET,
-        'nox_local_dev_jwt_secret_98234710928340192834',
-        'council-jwt-secret-dev',
-      ].filter(Boolean) as string[])
-    );
-
-    let verifiedDecoded: any = null;
-
-    for (const secret of candidateSecrets) {
-      try {
-        verifiedDecoded = jwt.verify(token, secret);
-        break;
-      } catch {
-        // try next candidate secret
-      }
-    }
-
-    if (verifiedDecoded) {
-      const userId = verifiedDecoded.sub || verifiedDecoded.id || verifiedDecoded.userId;
-      if (userId) {
-        req.user = {
-          id: userId,
-          email: verifiedDecoded.email,
-          name: verifiedDecoded.name || 'Council User',
-          role: verifiedDecoded.role || 'USER',
-        };
-        return next();
-      }
-    }
-
-    // If verification against candidate secrets failed, but request is proxied from an authenticated upstream (Nox API)
-    if (requestedUserId) {
-      req.user = {
-        id: requestedUserId,
-        name: 'User ' + requestedUserId.slice(-4),
-        role: 'USER',
-      };
-      return next();
-    }
-
-    // Try reading decoded payload if from trusted proxy
-    try {
-      const unverified = jwt.decode(token) as any;
-      const decodedUserId = unverified?.sub || unverified?.id || unverified?.userId;
-      if (decodedUserId) {
-        req.user = {
-          id: decodedUserId,
-          email: unverified.email,
-          name: unverified.name || 'Council User',
-          role: unverified.role || 'USER',
-        };
-        return next();
-      }
-    } catch {
-      // ignore
-    }
-
-    if (process.env.NODE_ENV === 'production' && !requestedUserId) {
-      return res.status(401).json({
+    const secret = getJwtSecret();
+    if (!secret) {
+      return res.status(503).json({
         success: false,
-        error: { message: 'Council token verification failed: invalid signature' },
+        error: { message: 'Council authentication is not configured.' },
       });
     }
+
+    let verifiedDecoded: jwt.JwtPayload;
+    try {
+      const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
+      if (typeof decoded === 'string') throw new Error('Invalid token payload');
+      verifiedDecoded = decoded;
+    } catch {
+      return res.status(401).json({
+        success: false,
+        error: { message: 'Council token verification failed: invalid signature or expired token.' },
+      });
+    }
+
+    if (typeof verifiedDecoded.sub !== 'string' || !verifiedDecoded.sub.trim()) {
+      return res.status(401).json({
+        success: false,
+        error: { message: 'Council token does not contain a valid user identity.' },
+      });
+    }
+
+    req.user = {
+      id: verifiedDecoded.sub,
+      email: typeof verifiedDecoded.email === 'string' ? verifiedDecoded.email : undefined,
+      name: typeof verifiedDecoded.name === 'string' ? verifiedDecoded.name : 'Council User',
+      role: typeof verifiedDecoded.role === 'string' ? verifiedDecoded.role : 'USER',
+    };
+    return next();
   }
 
-  // Development convenience or explicit user ID header
-  if (requestedUserId) {
+  if (process.env.NODE_ENV !== 'production' && requestedUserId) {
     req.user = {
       id: requestedUserId,
       name: 'User ' + requestedUserId.slice(-4),
@@ -122,21 +92,10 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     return next();
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(401).json({
-      success: false,
-      error: { message: 'Authentication required. Authorization header missing.' },
-    });
-  }
-
-  // Default fallback user for seamless local standalone operation
-  req.user = {
-    id: 'cmttwn1zg0000h4iajwvjrlf0', // Ilakkiyan J / primary user
-    email: 'ilakkiyan-j@arixen.in',
-    name: 'Ilakkiyan J',
-    role: 'USER',
-  };
-  return next();
+  return res.status(401).json({
+    success: false,
+    error: { message: 'Authentication required. Provide a valid bearer token.' },
+  });
 }
 
 /**

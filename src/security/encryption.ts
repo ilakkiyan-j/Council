@@ -14,7 +14,10 @@ const AUTH_TAG_LENGTH = 16; // Standard 128 bits authentication tag
  * If not set or invalid length, derives a stable 32-byte key via scrypt.
  */
 function getMasterKey(): Buffer {
-  const rawKey = process.env.ENCRYPTION_KEY || process.env.JWT_SECRET || 'council-v2-fallback-secret-key-32b!';
+  const rawKey = process.env.ENCRYPTION_KEY || process.env.JWT_SECRET;
+  if (!rawKey) {
+    throw new Error('ENCRYPTION_KEY or JWT_SECRET must be configured before using provider credentials.');
+  }
   if (rawKey.length === 64 && /^[0-9a-fA-F]+$/.test(rawKey)) {
     return Buffer.from(rawKey, 'hex');
   }

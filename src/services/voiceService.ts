@@ -106,15 +106,11 @@ export class VoiceService {
   }
 
   /**
-   * Check whether this userId is authorized to use the exclusive Sofi Clean clone.
-   * Owner accounts or accounts listed in allowedUserIds have access.
+   * Check whether this userId is authorized to use the exclusive Sofi voice.
    */
   isOwnerOrExclusiveAuthorized(userId: string): boolean {
-    const ownerUserId = process.env.OWNER_USER_ID || 'ilakkiyan';
-    if (userId.toLowerCase().includes('ilakkiyan') || userId === ownerUserId || userId.startsWith('user_')) {
-      return true;
-    }
-    return false;
+    const ownerUserId = process.env.OWNER_USER_ID?.trim();
+    return Boolean(ownerUserId && userId === ownerUserId);
   }
 
   /**
