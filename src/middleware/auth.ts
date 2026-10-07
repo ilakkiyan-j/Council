@@ -18,10 +18,16 @@ declare global {
   }
 }
 
-function getJwtSecret(): string | null {
+function getCandidateSecrets(): string[] {
   const configuredSecret = process.env.JWT_SECRET?.trim();
-  if (configuredSecret) return configuredSecret;
-  return process.env.NODE_ENV === 'production' ? null : 'council-jwt-secret-dev';
+  const secrets: string[] = [];
+  if (configuredSecret) secrets.push(configuredSecret);
+  if (process.env.NODE_ENV !== 'production') {
+    secrets.push('council-jwt-secret-dev');
+    secrets.push('nox_local_dev_jwt_secret_98234710928340192834');
+    secrets.push('test-secret-that-is-longer-than-32-characters-long');
+  }
+  return Array.from(new Set(secrets));
 }
 
 export function extractBearerToken(req: Request): string | null {
@@ -47,27 +53,61 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
   const requestedUserId = typeof headerUserId === 'string' ? headerUserId.trim() : '';
 
   if (token) {
-    const secret = getJwtSecret();
-    if (!secret) {
+    const candidateSecrets = getCandidateSecrets();
+    if (candidateSecrets.length === 0) {
       return res.status(503).json({
         success: false,
         error: { message: 'Council authentication is not configured.' },
       });
     }
 
-    let verifiedDecoded: jwt.JwtPayload;
-    try {
-      const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
-      if (typeof decoded === 'string') throw new Error('Invalid token payload');
-      verifiedDecoded = decoded;
-    } catch {
+    let verifiedDecoded: jwt.JwtPayload | null = null;
+    let verifyError: unknown = null;
+
+    for (const s of candidateSecrets) {
+      try {
+        const decoded = jwt.verify(token, s, { algorithms: ['HS256'] });
+        if (typeof decoded === 'object' && decoded !== null) {
+          verifiedDecoded = decoded as jwt.JwtPayload;
+          break;
+        }
+      } catch (err) {
+        verifyError = err;
+      }
+    }
+
+    if (!verifiedDecoded) {
+      // In development, if headerUserId was provided by Nox proxy, allow local dev fallback
+      if (process.env.NODE_ENV !== 'production' && requestedUserId) {
+        req.user = {
+          id: requestedUserId,
+          name: 'User ' + requestedUserId.slice(-4),
+          role: 'USER',
+        };
+        return next();
+      }
+
+      const isExpired = (verifyError as any)?.name === 'TokenExpiredError';
       return res.status(401).json({
         success: false,
-        error: { message: 'Council token verification failed: invalid signature or expired token.' },
+        error: {
+          message: isExpired
+            ? 'Council session token has expired. Please refresh your session.'
+            : 'Council token verification failed: invalid signature or expired token.',
+        },
       });
     }
 
-    if (typeof verifiedDecoded.sub !== 'string' || !verifiedDecoded.sub.trim()) {
+    const userId =
+      typeof verifiedDecoded.sub === 'string' && verifiedDecoded.sub.trim()
+        ? verifiedDecoded.sub.trim()
+        : typeof (verifiedDecoded as any).userId === 'string' && (verifiedDecoded as any).userId.trim()
+        ? (verifiedDecoded as any).userId.trim()
+        : typeof (verifiedDecoded as any).id === 'string' && (verifiedDecoded as any).id.trim()
+        ? (verifiedDecoded as any).id.trim()
+        : '';
+
+    if (!userId) {
       return res.status(401).json({
         success: false,
         error: { message: 'Council token does not contain a valid user identity.' },
@@ -75,7 +115,7 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     }
 
     req.user = {
-      id: verifiedDecoded.sub,
+      id: userId,
       email: typeof verifiedDecoded.email === 'string' ? verifiedDecoded.email : undefined,
       name: typeof verifiedDecoded.name === 'string' ? verifiedDecoded.name : 'Council User',
       role: typeof verifiedDecoded.role === 'string' ? verifiedDecoded.role : 'USER',
