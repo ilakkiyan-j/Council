@@ -44,8 +44,12 @@ export class BotRuntime {
 
     // 2. Resolve or create conversation
     let conversationId = request.conversationId;
+    const initialTitle = message && message.trim()
+      ? message.trim().replace(/\s+/g, ' ').slice(0, 60)
+      : `Chat with ${bot.name}`;
+
     if (!conversationId) {
-      const conv = await this.conversationService.createConversation(userId, bot.id);
+      const conv = await this.conversationService.createConversation(userId, bot.id, initialTitle);
       conversationId = conv.id;
     } else {
       // Auto-create conversation with client's requested ID (e.g. from Nox sessions) if not found
@@ -58,7 +62,7 @@ export class BotRuntime {
             id: conversationId,
             userId,
             botId: bot.id,
-            title: `Chat with ${bot.name}`,
+            title: initialTitle,
           },
         });
       }

@@ -14,6 +14,11 @@ export class ConversationService {
         bot: {
           select: { id: true, name: true, slug: true, avatar: true, color: true },
         },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { content: true, role: true },
+        },
         _count: {
           select: { messages: true },
         },
@@ -87,6 +92,25 @@ export class ConversationService {
         latencyMs: extra?.latencyMs ?? 0,
       },
     });
+
+    // If user message, update title if it is still a generic "Chat with..." or empty
+    if (role === 'user' && content && content.trim()) {
+      const conv = await this.prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { title: true },
+      });
+      if (conv && (!conv.title || conv.title.startsWith('Chat with ') || conv.title.startsWith('Voice Call with '))) {
+        const cleanSnippet = content.trim().replace(/\s+/g, ' ').slice(0, 60);
+        await this.prisma.conversation.update({
+          where: { id: conversationId },
+          data: {
+            title: cleanSnippet,
+            updatedAt: new Date(),
+          },
+        });
+        return msg;
+      }
+    }
 
     // Touch conversation updatedAt
     await this.prisma.conversation.update({

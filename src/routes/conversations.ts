@@ -76,13 +76,13 @@ conversationsRouter.get('/sessions', requireAuth, async (req: Request, res: Resp
   try {
     const userId = req.user!.id;
     const list = await convService.listConversations(userId);
-    const sessions = list.map((c) => ({
+    const sessions = list.map((c: any) => ({
       sessionId: c.id,
       personaId: c.bot.slug,
       createdAt: c.createdAt.toISOString(),
       updatedAt: c.updatedAt.toISOString(),
       messageCount: c._count.messages,
-      lastMessagePreview: c.title,
+      lastMessagePreview: c.messages?.[0]?.content?.slice(0, 80) || c.title || `Chat with ${c.bot.name}`,
     }));
     return res.status(200).json({ success: true, data: sessions });
   } catch (err: any) {
